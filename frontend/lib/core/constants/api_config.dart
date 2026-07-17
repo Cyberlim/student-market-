@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 /// - On **Android physical device (Debug)**: uses the local Wi-Fi IP of the dev machine
 String get backendBaseUrl {
   if (kReleaseMode) {
-    return 'https://cloudnotes-backend.onrender.com/api';
+    return 'https://student-market-vzfm.onrender.com/api';
   }
   if (kIsWeb) {
     return 'http://localhost:5001/api';

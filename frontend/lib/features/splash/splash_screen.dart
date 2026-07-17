@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/colors.dart';
 import '../onboarding/onboarding_cache.dart';
 
@@ -25,7 +26,21 @@ class _SplashScreenState extends State<SplashScreen> {
     // Splash screen logo display delay (2.5 seconds)
     await Future.delayed(const Duration(milliseconds: 2500));
 
-    if (mounted) {
+    if (!mounted) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+      
+      if (!mounted) return;
+
+      if (token != null && token.isNotEmpty) {
+        context.go('/');
+      } else {
+        context.go('/onboarding');
+      }
+    } catch (e) {
+      if (!mounted) return;
       context.go('/onboarding');
     }
   }

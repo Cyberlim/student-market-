@@ -8,7 +8,7 @@ class AdminApiService {
   static final Dio _dio = Dio();
   
   static const List<String> _hosts = [
-    'https://cloudnotes-backend.onrender.com',
+    'https://student-market-vzfm.onrender.com',
     'http://localhost:5001',
     'http://10.0.2.2:5001',
     'http://10.66.158.220:5001',
