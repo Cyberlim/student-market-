@@ -105,6 +105,24 @@ exports.uploadNote = async (req, res) => {
     });
 
     console.log('Note saved successfully to MongoDB with id:', note._id);
+
+    // Notify all admin users of a new pending note review
+    try {
+      const User = require('../models/User');
+      const Notification = require('../models/Notification');
+      const admins = await User.find({ role: 'Admin' });
+      for (const admin of admins) {
+        await Notification.create({
+          user: admin._id,
+          title: '📝 New Note Pending Review',
+          message: `A new note "${note.title}" has been uploaded and is pending approval.`,
+          type: 'Promo',
+        });
+      }
+    } catch (notifErr) {
+      console.error('Failed to notify admins of new note:', notifErr.message);
+    }
+
     res.status(201).json({ success: true, data: note });
   } catch (err) {
     console.error('Note upload error:', err.message);
