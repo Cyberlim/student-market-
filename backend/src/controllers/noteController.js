@@ -278,10 +278,32 @@ exports.updateNoteStatus = async (req, res) => {
 
     note.status = status;
 
+    const Notification = require('../models/Notification');
+
+    // Notify seller of Note Approval / Rejection
+    try {
+      if (status === 'Approved') {
+        await Notification.create({
+          user: note.seller,
+          title: '✅ Note Approved!',
+          message: `Your note "${note.title}" has been reviewed and approved by the admin. It is now live in the marketplace!`,
+          type: 'Promo',
+        });
+      } else if (status === 'Rejected') {
+        await Notification.create({
+          user: note.seller,
+          title: '❌ Note Rejected',
+          message: `Your note "${note.title}" has been reviewed and rejected by the admin.`,
+          type: 'Promo',
+        });
+      }
+    } catch (notifErr) {
+      console.error('Note status update notification failed (non-fatal):', notifErr.message);
+    }
+
     // Award coins to the creator if approved for the first time
     if (status === 'Approved' && !note.rewardedForApproval) {
       const User = require('../models/User');
-      const Notification = require('../models/Notification');
       const PlatformConfig = require('../models/PlatformConfig');
       let config = await PlatformConfig.findOne();
       if (!config) {

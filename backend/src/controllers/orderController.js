@@ -72,14 +72,24 @@ exports.createOrder = async (req, res) => {
       await note.save();
     }
 
-    // Send notification to seller
+    // Send notifications to both seller and buyer
     try {
       const sellerId = note.seller._id || note.seller;
       const buyerName = buyer.name || 'A student';
+      
+      // Notify Seller
       await Notification.create({
         user: sellerId,
         title: isPhysical ? '🎉 Your Item Was Sold!' : '📄 Your Notes Were Purchased!',
         message: `${buyerName} purchased "${note.title}" for ₹${price}${coinsUsed > 0 ? ` (${coinsUsed} coins + ₹${cashPaid} cash)` : ''}.`,
+        type: 'Order',
+      });
+
+      // Notify Buyer
+      await Notification.create({
+        user: req.user.id,
+        title: '🛍️ Purchase Successful!',
+        message: `You have successfully purchased "${note.title}" for ₹${price}. You can access it in your library now.`,
         type: 'Order',
       });
     } catch (notifErr) {
