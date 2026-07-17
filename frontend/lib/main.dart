@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router/router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/notification_service.dart';
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   ThemeModeNotifier() : super(ThemeMode.light) {
@@ -34,7 +35,12 @@ final themeNotifierProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode
   return ThemeModeNotifier();
 });
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize native local notifications and start backend polling
+  await NotificationService.instance.initialize();
+
   runApp(
     const ProviderScope(
       child: MyApp(),
