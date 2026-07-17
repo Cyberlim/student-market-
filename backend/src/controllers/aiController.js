@@ -15,7 +15,7 @@ const callGemini = (prompt) => {
     const options = {
       hostname: 'generativelanguage.googleapis.com',
       port: 443,
-      path: `/v1/models/gemini-3.5-flash:generateContent?key=${key}`,
+      path: `/v1/models/gemini-1.5-flash:generateContent?key=${key}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
