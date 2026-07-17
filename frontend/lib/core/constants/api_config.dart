@@ -1,10 +1,14 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 
 /// Returns the backend base URL based on the current platform.
 ///
-/// - On **Chrome/Web**: uses `localhost` (same machine as the backend server)
-/// - On **Android physical device**: uses the local Wi-Fi IP of the dev machine
+/// - On **Release Mode (Production)**: points to Render backend URL
+/// - On **Chrome/Web (Debug)**: uses `localhost`
+/// - On **Android physical device (Debug)**: uses the local Wi-Fi IP of the dev machine
 String get backendBaseUrl {
+  if (kReleaseMode) {
+    return 'https://cloudnotes-backend.onrender.com/api';
+  }
   if (kIsWeb) {
     return 'http://localhost:5001/api';
   } else {

@@ -5,7 +5,7 @@ import '../../core/constants/colors.dart';
 import '../onboarding/onboarding_cache.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -48,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 height: 400,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
@@ -70,23 +70,28 @@ class _SplashScreenState extends State<SplashScreen> {
                 children: [
                   // Premium animated logo badge
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: 110,
+                    height: 110,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(32),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 30,
                           offset: const Offset(0, 15),
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.menu_book_rounded,
-                      size: 50,
-                      color: AppColors.primary,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(32),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
                   )
                       .animate()
@@ -99,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       .shake(duration: 500.ms, hz: 2),
                   const SizedBox(height: 24),
                   Text(
-                    'EduMarket',
+                    'CloudNotes',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -114,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   Text(
                     'The Premium College Notes Hub',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.75),
+                      color: Colors.white.withValues(alpha: 0.75),
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.5,

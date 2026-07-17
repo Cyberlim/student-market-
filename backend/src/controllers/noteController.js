@@ -297,3 +297,44 @@ exports.updateNoteStatus = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// @desc    Get notes accessible to the user (owned, purchased, or free)
+// @route   GET /api/notes/my-library
+// @access  Private
+exports.getMyStudyNotes = async (req, res) => {
+  try {
+    const Order = require('../models/Order');
+    const userId = req.user.id;
+
+    // 1. Get IDs of notes purchased by the user
+    const orders = await Order.find({ buyer: userId }).select('note');
+    const purchasedNoteIds = orders.map(order => order.note);
+
+    // 2. Fetch notes that match any of:
+    //    - Note is owned by the user (seller === userId)
+    //    - Note is purchased by the user (id in purchasedNoteIds)
+    //    - Note is free (price === 0) and approved
+    // And exclude physical items since AI features are only for study notes (Digital)
+    const query = {
+      itemType: 'Digital',
+      $or: [
+        { seller: userId },
+        { _id: { $in: purchasedNoteIds } },
+        { price: 0, status: 'Approved' }
+      ]
+    };
+
+    const notes = await Note.find(query)
+      .populate('seller', 'name email avatar college')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: notes.length,
+      data: notes
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

@@ -49,7 +49,7 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeNotifierProvider);
     return MaterialApp.router(
-      title: 'EduMarket Notes Hub',
+      title: 'CloudNotes',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,

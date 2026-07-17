@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { uploadNote, getNotes, getNoteById, reviewNote, updateNoteStatus } = require('../controllers/noteController');
+const { uploadNote, getNotes, getNoteById, reviewNote, updateNoteStatus, getMyStudyNotes } = require('../controllers/noteController');
 const { protect, authorize } = require('../middleware/auth');
+
 
 // Multer basic disk storage fallback config
 const storage = multer.diskStorage({
@@ -28,6 +29,8 @@ const uploadFields = upload.fields([
 router.route('/')
   .get(getNotes)
   .post(protect, uploadFields, uploadNote);
+
+router.get('/my-library', protect, getMyStudyNotes);
 
 router.route('/:id')
   .get(getNoteById);

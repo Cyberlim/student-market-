@@ -9,7 +9,7 @@ import 'onboarding_cache.dart';
 
 // ─── OnboardingScreen Stateful Widget ─────────────────────────────────────
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  const OnboardingScreen({super.key});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -25,14 +25,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       description: 'Access top-tier hand-written and digital notes, verified exam resources, and PPTs from top colleges.',
       icon: Icons.search_rounded,
       gradient: AppColors.primaryGradient,
-      videoUrl: 'https://res.cloudinary.com/dbtxwousd/video/upload/v1782985156/onpdsw3iwffo8pbqmxq9.gif',
+      videoUrl: 'assets/onboarding/onboarding1.gif',
     ),
     OnboardingItem(
       title: 'Share & Earn Revenue',
       description: 'Upload your notes, set your own prices, track sales, and withdraw real money directly to your account.',
       icon: Icons.monetization_on_rounded,
       gradient: AppColors.accentGradient,
-      videoUrl: 'https://res.cloudinary.com/dbtxwousd/image/upload/v1782979755/szbmysjmyukr9dqssegt.gif',
+      videoUrl: 'assets/onboarding/onboarding2.gif',
     ),
     OnboardingItem(
       title: 'AI Study Assistant',
@@ -43,7 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      videoUrl: 'https://res.cloudinary.com/dbtxwousd/video/upload/v1782991108/yrrgp7zpvfxhrx0yfqfx.gif',
+      videoUrl: 'assets/onboarding/onboarding3.gif',
     ),
   ];
 
@@ -89,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _items[_currentPage].gradient.colors.first.withOpacity(0.35),
+                    _items[_currentPage].gradient.colors.first.withValues(alpha: 0.35),
                     Colors.transparent,
                   ],
                 ),
@@ -108,7 +108,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    _items[_currentPage].gradient.colors.last.withOpacity(0.25),
+                    _items[_currentPage].gradient.colors.last.withValues(alpha: 0.25),
                     Colors.transparent,
                   ],
                 ),
@@ -174,7 +174,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   borderRadius: BorderRadius.circular(30),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: item.gradient.colors.first.withOpacity(isDark ? 0.25 : 0.15),
+                                      color: item.gradient.colors.first.withValues(alpha: isDark ? 0.25 : 0.15),
                                       blurRadius: 28,
                                       spreadRadius: 1,
                                       offset: const Offset(0, 10),
@@ -190,15 +190,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     width: double.infinity,
                                     height: double.infinity,
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.04),
+                                      color: AppColors.primary.withValues(alpha: 0.04),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: item.gradient.colors.first.withOpacity(isDark ? 0.4 : 0.25),
+                                        color: item.gradient.colors.first.withValues(alpha: isDark ? 0.4 : 0.25),
                                         width: 1.5,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: item.gradient.colors.first.withOpacity(isDark ? 0.25 : 0.15),
+                                          color: item.gradient.colors.first.withValues(alpha: isDark ? 0.25 : 0.15),
                                           blurRadius: 16,
                                           spreadRadius: 1,
                                         ),
@@ -207,20 +207,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     child: item.videoUrl.endsWith('.gif')
                                         ? ClipRRect(
                                             borderRadius: BorderRadius.circular(20),
-                                            child: Image.network(
+                                            child: Image.asset(
                                               item.videoUrl,
                                               fit: BoxFit.cover,
                                               width: double.infinity,
                                               height: double.infinity,
-                                              loadingBuilder: (context, child, loadingProgress) {
-                                                if (loadingProgress == null) return child;
-                                                return const Center(
-                                                  child: CircularProgressIndicator(
-                                                    color: AppColors.primary,
-                                                    strokeWidth: 3,
-                                                  ),
-                                                );
-                                              },
                                               errorBuilder: (context, error, stackTrace) {
                                                 return Container(
                                                   width: 100,

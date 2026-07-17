@@ -11,8 +11,8 @@ exports.getConfig = async (req, res) => {
         referralReferrerReward: 50,
         noteApprovalReward: 50,
         platformCommissionRate: 10,
-        appName: 'EduMarket',
-        appLogoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=120',
+        appName: 'CloudNotes',
+        appLogoUrl: '',
       });
     }
     res.status(200).json({ success: true, data: config });

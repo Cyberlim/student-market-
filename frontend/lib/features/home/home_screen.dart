@@ -132,8 +132,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _realBanners = [];
   String _userName = 'Alok';
   String _userAvatar = 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=120';
-  String _configAppName = 'EduMarket';
+  String _configAppName = 'CloudNotes';
   String _configAppLogoUrl = '';
+  int _userCoins = 0;
 
   PageController? _bannerPageController;
   int _currentBannerPage = 0;
@@ -151,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final fullName = prefs.getString('user_name') ?? 'Alok';
         _userName = fullName.split(' ').first;
         _userAvatar = prefs.getString('user_avatar') ?? 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=120';
+        _userCoins = prefs.getInt('user_coins') ?? 100;
       });
     } catch (e) {
       debugPrint('Error loading user profile: $e');
@@ -164,6 +166,35 @@ class _HomeScreenState extends State<HomeScreen> {
       final dio = Dio();
       final String baseUrl = backendBaseUrl;
       final token = await _getToken();
+
+      // 0. Fetch Current User Profile/Coins
+      try {
+        final profileRes = await dio.get(
+          '$baseUrl/auth/me',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        if (profileRes.statusCode == 200 && profileRes.data['success'] == true) {
+          final user = profileRes.data['user'] ?? {};
+          final coins = (user['coins'] ?? 0) as int;
+          final name = user['name'] ?? '';
+          final avatar = user['avatar'] ?? '';
+          
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('user_coins', coins);
+          if (name.isNotEmpty) await prefs.setString('user_name', name);
+          if (avatar.isNotEmpty) await prefs.setString('user_avatar', avatar);
+
+          if (mounted) {
+            setState(() {
+              _userCoins = coins;
+              if (name.isNotEmpty) _userName = name.split(' ').first;
+              if (avatar.isNotEmpty) _userAvatar = avatar;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching user profile from backend: $e');
+      }
 
       // 1. Fetch Digital Notes
       try {
@@ -480,23 +511,34 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.1), width: 1),
                   ),
-                  child: _configAppLogoUrl.startsWith('http')
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: _configAppLogoUrl.startsWith('http')
+                        ? Image.network(
                             _configAppLogoUrl,
-                            width: isCompact ? 16 : 18,
-                            height: isCompact ? 16 : 18,
+                            width: isCompact ? 20 : 24,
+                            height: isCompact ? 20 : 24,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(Icons.school_rounded, color: Colors.white, size: isCompact ? 16 : 18),
+                            errorBuilder: (context, error, stackTrace) => Image.asset(
+                              'assets/images/logo.png',
+                              width: isCompact ? 20 : 24,
+                              height: isCompact ? 20 : 24,
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                        : Image.asset(
+                            'assets/images/logo.png',
+                            width: isCompact ? 20 : 24,
+                            height: isCompact ? 20 : 24,
+                            fit: BoxFit.contain,
                           ),
-                        )
-                      : Icon(Icons.school_rounded, color: Colors.white, size: isCompact ? 16 : 18),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -534,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Coins tracker with scoring animation
-              const CoinsScoringWidget(coins: 450),
+              CoinsScoringWidget(coins: _userCoins),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => context.push('/profile'),
