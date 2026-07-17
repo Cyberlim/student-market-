@@ -1,0 +1,36 @@
+name: admin_app
+description: EduMarket — Admin Control Panel
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Navigation
+  go_router: ^14.0.0
+  # State Management
+  flutter_riverpod: ^2.5.1
+  # HTTP
+  dio: ^5.4.3+1
+  # Charts
+  fl_chart: ^0.69.0
+  # Fonts
+  google_fonts: ^6.2.1
+  # Local storage for JWT
+  shared_preferences: ^2.3.0
+  # Animations
+  flutter_animate: ^4.5.0
+  # File picking for image uploads
+  file_picker: ^11.0.2
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

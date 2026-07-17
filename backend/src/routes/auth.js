@@ -1,0 +1,22 @@
+const express = require('express');
+const router = express.Router();
+const { register, login, getMe, googleLogin, verifyOtp, forgotPassword, getAddresses, addAddress, deleteAddress, updateProfile } = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
+
+router.post('/register', register);
+router.post('/login', login);
+router.get('/me', protect, getMe);
+router.post('/google', googleLogin);
+router.post('/otp/verify', verifyOtp);
+router.post('/forgot-password', forgotPassword);
+router.put('/profile', protect, updateProfile);
+
+// User Addresses
+router.route('/addresses')
+  .get(protect, getAddresses)
+  .post(protect, addAddress);
+router.route('/addresses/:id')
+  .delete(protect, deleteAddress);
+
+module.exports = router;
+

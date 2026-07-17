@@ -1,0 +1,46 @@
+# Task List - College Notes Marketplace
+
+- [x] Project Setup & Scaffolding
+  - [x] Initialize Flutter project in `frontend/`
+  - [x] Initialize Node.js project in `backend/`
+  - [x] Configure `pubspec.yaml` with required dependencies
+  - [x] Configure `package.json` with Node.js dependencies
+- [x] Flutter Design System & Common Widgets
+  - [x] Set up theme colors, dark/light theme configs, and Google Fonts
+  - [x] Create `GlassCard` widget for glassmorphism panels
+  - [x] Create animated `GradientButton` widget
+  - [x] Create custom shimmer skeleton loaders
+- [x] GoRouter Shell & Navigation
+  - [x] Configure GoRouter routes for Web and Mobile screens
+  - [x] Build custom responsive layout shell
+- [x] Splash & Onboarding Screens
+  - [x] Build `SplashScreen`
+  - [x] Build `OnboardingScreen` with micro-animations
+- [x] Authentication Screens
+  - [x] Build Login screen (Email + Google)
+  - [x] Build Signup screen (Student/Teacher/Admin selection)
+  - [x] Build OTP Verification screen
+  - [x] Build Forgot & Reset Password screens
+- [x] Home and Landing Pages
+  - [x] Build Web Landing Page (Hero, stats, popular subjects, trending, testimonials)
+  - [x] Build Mobile Home Screen (Search, categories, flash sales, continue reading)
+- [x] Search & Browse Notes
+  - [x] Build advanced Search & Filters panel
+  - [x] Build Note Details page (page flips preview, reviews, download/buy states)
+- [x] Dashboards
+  - [x] Build Seller Dashboard (Analytics graphs, withdrawal wallet, upload form)
+  - [x] Build Buyer Dashboard (Purchased notes, leaderboard, profile, settings)
+  - [x] Build Admin Dashboard UI (Approval queues, payments, reports, CMS)
+- [x] Community & AI Tabs
+  - [x] Build Discussion Forum / Q&A screen
+  - [x] Build AI Features panel (Summaries, flashcards, quizzes)
+- [x] Node.js Backend & MongoDB Integration
+  - [x] Set up server structure, routes, middleware, and config
+  - [x] Build all Mongoose models
+  - [x] Implement JWT auth, refresh token flow, and password hashing
+  - [x] Integrate Cloudinary for file storage and Multer for uploads
+  - [x] Implement REST endpoints (Notes CRUD, search, reviews, notifications)
+  - [x] Implement Razorpay order creation and webhook verification
+- [x] Verification & Polish
+  - [x] Run test suite & code analysis
+  - [x] Walkthrough documentation & video demo
