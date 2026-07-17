@@ -25,6 +25,7 @@ dependencies:
   flutter_animate: ^4.5.0
   # File picking for image uploads
   file_picker: ^11.0.2
+  flutter_local_notifications: ^17.0.0
 
 
 dev_dependencies:
