@@ -75,6 +75,25 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'College Notes Marketplace Server is active' });
 });
 
+// Temporary Database Debug Endpoint
+app.get('/api/debug-db', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+    const notesCount = await db.collection('notes').countDocuments();
+    res.json({
+      databaseName: mongoose.connection.name,
+      readyState: mongoose.connection.readyState,
+      collections: collections.map(c => c.name),
+      notesCount,
+      mongoUriProvided: !!process.env.MONGO_URI,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Centralized Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
