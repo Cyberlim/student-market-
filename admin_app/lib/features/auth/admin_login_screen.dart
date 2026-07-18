@@ -50,6 +50,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         if (token != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwt_token', token);
+
+          // Register FCM token now that admin is logged in
+          AdminNotificationService.instance.registerFcmToken();
         }
 
         if (mounted) context.go('/');
