@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 require('dotenv').config();
+require('./utils/firebase').initFirebase();
 
 const authRoutes = require('./routes/auth');
 const notesRoutes = require('./routes/notes');

@@ -61,6 +61,7 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String, default: '' },
   bio: { type: String, default: '' },
   isProfileComplete: { type: Boolean, default: false },
+  fcmToken: { type: String, default: null },
   createdAt: {
     type: Date,
     default: Date.now,

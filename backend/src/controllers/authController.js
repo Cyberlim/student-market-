@@ -363,3 +363,26 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+// Update FCM Token for push notifications
+exports.updateFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Token is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.fcmToken = token;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'FCM token updated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
