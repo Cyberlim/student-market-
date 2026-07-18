@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router/router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   ThemeModeNotifier() : super(ThemeMode.light) {
@@ -38,6 +40,13 @@ final themeNotifierProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
   // Initialize native local notifications and start backend polling
   await NotificationService.instance.initialize();
 

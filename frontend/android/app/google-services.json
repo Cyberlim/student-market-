@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "86243436179",
+    "project_id": "edu-mart-d9550",
+    "storage_bucket": "edu-mart-d9550.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:86243436179:android:4b6d10b06d6a7a0ba20f66",
+        "android_client_info": {
+          "package_name": "com.college.notes.notes_marketplace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI04jDvp2Z42Dv6ZB7ECl_8Rb2qse7wgY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

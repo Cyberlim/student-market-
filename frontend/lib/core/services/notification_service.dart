@@ -3,7 +3,13 @@ import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../constants/api_config.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint("Handling a background message: ${message.messageId}");
+}
 
 class NotificationService {
   static final NotificationService instance = NotificationService._();
@@ -52,7 +58,29 @@ class NotificationService {
     _initialized = true;
     debugPrint('[Notifications] Initialized local notifications plugin successfully.');
 
-    // Start polling backend notifications
+    // FCM Initialization
+    try {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      await FirebaseMessaging.instance.requestPermission();
+      
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('Got a message whilst in the foreground!');
+        if (message.notification != null) {
+          showNotification(
+            id: message.hashCode,
+            title: message.notification!.title ?? 'New Alert',
+            body: message.notification!.body ?? '',
+          );
+        }
+      });
+      
+      // Register token if already logged in
+      await registerFcmToken();
+    } catch (e) {
+      debugPrint('FCM init error: $e');
+    }
+
+    // Start polling backend notifications (fallback)
     startPolling();
   }
 
@@ -161,6 +189,30 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('[Notifications] Error polling notifications: $e');
+    }
+  }
+
+  // Register device token with backend for Push Notifications
+  Future<void> registerFcmToken() async {
+    try {
+      if (kIsWeb) return;
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+      if (token == null || token.isEmpty) return;
+
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await _dio.put(
+          '$backendBaseUrl/auth/fcm-token',
+          data: {'token': fcmToken},
+          options: Options(
+            headers: {'Authorization': 'Bearer $token'},
+          ),
+        );
+        debugPrint('[FCM] Token registered with backend');
+      }
+    } catch (e) {
+      debugPrint('[FCM] Failed to register token: $e');
     }
   }
 }

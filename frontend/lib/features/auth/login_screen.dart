@@ -151,6 +151,9 @@ class _LoginScreenState extends State<LoginScreen> {
         final isProfileComplete = userData['isProfileComplete'] == true;
         await prefs.setBool('profile_complete', isProfileComplete);
 
+        // Register FCM token now that user is logged in
+        NotificationService.instance.registerFcmToken();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
