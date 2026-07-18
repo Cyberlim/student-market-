@@ -19,6 +19,9 @@ const bannersRoutes = require('./routes/banners');
 
 const app = express();
 
+// Trust proxy for deployment on Render/Heroku (needed for rate limiter)
+app.set('trust proxy', 1);
+
 // Simple request logger
 app.use((req, res, next) => {
   console.log(`[HTTP] ${req.method} ${req.path}`);
