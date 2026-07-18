@@ -46,7 +46,27 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       title,
       body,
     },
-    data,
+    data: Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, String(v)])
+    ),
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'notes_marketplace_notifications_channel',
+        priority: 'high',
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        notificationCount: 1,
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+        },
+      },
+    },
     token: fcmToken,
   };
 
