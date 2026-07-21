@@ -9,6 +9,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/gradient_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 import 'pdf_viewer_screen.dart';
 
 class NoteDetailScreen extends StatefulWidget {
@@ -664,14 +665,34 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
   }
 
   void _showSnack(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: GoogleFonts.poppins(fontSize: 13, color: Colors.white)),
+        content: Text(msg, style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
         backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  }
+
+  Future<void> _downloadFile(String fileUrl) async {
+    if (fileUrl.isEmpty) {
+      _showSnack('Download link not available.');
+      return;
+    }
+    
+    String finalUrl = fileUrl;
+    if (fileUrl.startsWith('/')) {
+      finalUrl = backendBaseUrl.replaceAll('/api', '') + fileUrl;
+    }
+
+    final Uri url = Uri.parse(finalUrl);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      _showSnack('Could not launch download link.');
+    }
   }
 
   @override
@@ -794,7 +815,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                         if (_isPhysical) {
                           context.push('/orders');
                         } else {
-                          _showSnack('Downloading PDF...');
+                          _downloadFile(_details['fileUrl'] ?? '');
                         }
                       } else {
                         _showPurchaseSheet();

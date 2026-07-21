@@ -8,6 +8,7 @@ import 'dart:convert';
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
 import '../../widgets/glass_card.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({Key? key}) : super(key: key);
@@ -53,6 +54,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               'category': noteObj['physicalCategory'] ?? 'Classified',
               'sellerName': sellerObj['name'] ?? 'Campus Seller',
               'thumbnailUrl': noteObj['thumbnailUrl'] ?? '',
+              'fileUrl': noteObj['fileUrl'] ?? '',
               'purchaseDate': item['createdAt'] ?? DateTime.now().toIso8601String(),
               'status': item['status'] ?? 'Ordered',
             });
@@ -160,12 +162,35 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       debugPrint('Error updating tracking status in backend: $e');
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Order Status updated to $nextStatus'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _showSnack('Order Status updated to $nextStatus');
+  }
+
+  Future<void> _downloadFile(String fileUrl) async {
+    if (fileUrl.isEmpty) {
+      _showSnack('Download link not available.');
+      return;
+    }
+    
+    String finalUrl = fileUrl;
+    if (fileUrl.startsWith('/')) {
+      finalUrl = backendBaseUrl.replaceAll('/api', '') + fileUrl;
+    }
+
+    final Uri url = Uri.parse(finalUrl);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      _showSnack('Could not launch download link.');
+    }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: AppColors.primary,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   @override
@@ -303,7 +328,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   ],
                 ),
                 TextButton(
-                  onPressed: () => _showSnack('Downloading/Opening digital note file...'),
+                  onPressed: () => _downloadFile(order['fileUrl'] ?? ''),
                   child: const Text('Download Note PDF', style: TextStyle(fontSize: 12)),
                 )
               ],
