@@ -53,6 +53,17 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>();
     if (androidImplementation != null) {
       await androidImplementation.requestNotificationsPermission();
+
+      // Create the high priority channel explicitly so background FCM messages
+      // don't get dropped by Android if they arrive before the app ever creates it.
+      await androidImplementation.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'notes_marketplace_notifications_channel', // id
+          'Marketplace Updates', // name
+          description: 'Notifications for notes approval and buy orders', // description
+          importance: Importance.max,
+        ),
+      );
     }
 
     _initialized = true;
