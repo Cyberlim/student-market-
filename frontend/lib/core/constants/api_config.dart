@@ -14,5 +14,5 @@ String get backendBaseUrl {
   */
 
   // Default to live Render backend for testing and production
-  return 'https://student-market-vzfm.onrender.com/api';
+  return 'https://student-market-1-kx64.onrender.com/api';
 }
