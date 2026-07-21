@@ -9,7 +9,7 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/gradient_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:url_launcher/url_launcher.dart';
+import '../../core/utils/file_download_helper.dart';
 import 'pdf_viewer_screen.dart';
 
 class NoteDetailScreen extends StatefulWidget {
@@ -676,23 +676,8 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     );
   }
 
-  Future<void> _downloadFile(String fileUrl) async {
-    if (fileUrl.isEmpty) {
-      _showSnack('Download link not available.');
-      return;
-    }
-    
-    String finalUrl = fileUrl;
-    if (fileUrl.startsWith('/')) {
-      finalUrl = backendBaseUrl.replaceAll('/api', '') + fileUrl;
-    }
-
-    final Uri url = Uri.parse(finalUrl);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      _showSnack('Could not launch download link.');
-    }
+  Future<void> _downloadFile(String fileUrl, String title) async {
+    await FileDownloadHelper.downloadAndOpen(fileUrl, title, _showSnack);
   }
 
   @override
@@ -815,7 +800,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                         if (_isPhysical) {
                           context.push('/orders');
                         } else {
-                          _downloadFile(_details['fileUrl'] ?? '');
+                          _downloadFile(_details['fileUrl'] ?? '', _details['title'] ?? 'Note');
                         }
                       } else {
                         _showPurchaseSheet();

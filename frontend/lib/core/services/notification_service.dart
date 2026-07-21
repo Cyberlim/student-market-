@@ -126,6 +126,43 @@ class NotificationService {
     );
   }
 
+  // Show a native status bar notification with a progress bar
+  Future<void> showProgressNotification({
+    required int id,
+    required String title,
+    required String body,
+    required int progress,
+    required int maxProgress,
+    String? payload,
+  }) async {
+    if (!_initialized || kIsWeb) return;
+
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'notes_marketplace_downloads_channel',
+      'Downloads',
+      channelDescription: 'File download progress',
+      importance: Importance.low,
+      priority: Priority.low,
+      showProgress: true,
+      maxProgress: maxProgress,
+      progress: progress,
+      onlyAlertOnce: true,
+      playSound: false,
+    );
+
+    final NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await _localNotificationsPlugin.show(
+      id,
+      title,
+      body,
+      platformDetails,
+      payload: payload,
+    );
+  }
+
   // Periodic polling helper (runs every 30 seconds while app is active)
   void startPolling() {
     _pollingTimer?.cancel();

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../core/utils/file_download_helper.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 import '../../widgets/glass_card.dart';
@@ -213,23 +213,8 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
     );
   }
 
-  Future<void> _downloadFile(String fileUrl) async {
-    if (fileUrl.isEmpty) {
-      _showSnack('Download link not available.');
-      return;
-    }
-    
-    String finalUrl = fileUrl;
-    if (fileUrl.startsWith('/')) {
-      finalUrl = backendBaseUrl.replaceAll('/api', '') + fileUrl;
-    }
-
-    final Uri url = Uri.parse(finalUrl);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      _showSnack('Could not launch download link.');
-    }
+  Future<void> _downloadFile(String fileUrl, String title) async {
+    await FileDownloadHelper.downloadAndOpen(fileUrl, title, _showSnack);
   }
 
   @override
@@ -322,7 +307,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
                           ),
                           IconButton(
                             icon: const Icon(Icons.download_for_offline_rounded, color: AppColors.primary),
-                            onPressed: () => _downloadFile(fileUrl),
+                            onPressed: () => _downloadFile(fileUrl, title),
                           ),
                         ],
                       ),
