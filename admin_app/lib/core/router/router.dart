@@ -7,6 +7,7 @@ import '../../features/disputes/disputes_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/orders/orders_screen.dart';
 import '../../features/banners/banners_screen.dart';
+import '../../features/reports/reports_screen.dart';
 import '../../widgets/admin_shell.dart';
 
 final router = GoRouter(
@@ -46,6 +47,10 @@ final router = GoRouter(
         GoRoute(
           path: '/banners',
           builder: (_, __) => const BannersScreen(),
+        ),
+        GoRoute(
+          path: '/reports',
+          builder: (_, __) => const ReportsScreen(),
         ),
       ],
     ),

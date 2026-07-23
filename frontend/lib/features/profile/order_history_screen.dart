@@ -20,6 +20,7 @@ class OrderHistoryScreen extends StatefulWidget {
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
+  String _userRole = 'Student';
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       final token = prefs.getString('jwt_token') ?? '';
       
       if (token.isNotEmpty) {
+        _userRole = prefs.getString('user_role') ?? 'Student';
         final dio = Dio();
         final response = await dio.get(
           '$backendBaseUrl/orders',
@@ -165,8 +167,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     _showSnack('Order Status updated to $nextStatus');
   }
 
-  Future<void> _downloadFile(String fileUrl, String title) async {
-    await FileDownloadHelper.downloadAndOpen(fileUrl, title, _showSnack);
+  Future<void> _downloadFile(String fileUrl, String title, String noteId) async {
+    await FileDownloadHelper.downloadAndOpen(fileUrl, title, noteId, _showSnack);
   }
 
   void _showSnack(String msg) {
@@ -291,14 +293,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             const SizedBox(height: 12),
             _buildTrackingTimeline(status),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _advanceTracking(index),
-                icon: const Icon(Icons.local_shipping_rounded, size: 14),
-                label: const Text('Update Delivery Step (Demo)', style: TextStyle(fontSize: 11)),
+            if (_userRole == 'Admin')
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _advanceTracking(index),
+                  icon: const Icon(Icons.local_shipping_rounded, size: 14),
+                  label: const Text('Update Delivery Step', style: TextStyle(fontSize: 11)),
+                ),
               ),
-            ),
           ] else ...[
             const Divider(),
             const SizedBox(height: 8),
@@ -313,7 +316,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   ],
                 ),
                 TextButton(
-                  onPressed: () => _downloadFile(order['fileUrl'] ?? '', order['title'] ?? 'Note'),
+                  onPressed: () {
+                    final noteObj = order['note'];
+                    final noteId = noteObj is Map ? noteObj['_id'] ?? '' : noteObj.toString();
+                    _downloadFile(order['fileUrl'] ?? '', order['title'] ?? 'Note', noteId);
+                  },
                   child: const Text('Download Note PDF', style: TextStyle(fontSize: 12)),
                 )
               ],

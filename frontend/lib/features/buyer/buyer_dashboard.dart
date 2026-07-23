@@ -60,7 +60,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
       final meRes = await dio.get('$backendBaseUrl/auth/me', options: Options(headers: headers));
       if (meRes.statusCode == 200 && meRes.data['success'] == true) {
         final u = meRes.data['user'];
-        _coins = (u['coins'] ?? 0) as int;
+        _coins = ((u['coins'] ?? 0) as num).toInt();
         _userBadges = List<String>.from(u['badges'] ?? []);
         _dailyClaimed = _userBadges.contains('DailyEarner');
         _xp = (_userBadges.length * 100) + (_coins * 5);
@@ -149,7 +149,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
 
       if (res.statusCode == 200 && res.data['success'] == true) {
         setState(() {
-          _coins = (res.data['coins'] ?? _coins + 10) as int;
+          _coins = ((res.data['coins'] ?? _coins + 10) as num).toInt();
           _dailyClaimed = true;
           _userBadges = List<String>.from(res.data['badges'] ?? _userBadges);
           _xp += 25;
@@ -179,7 +179,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
 
       if (res.statusCode == 200 && res.data['success'] == true) {
         setState(() {
-          _coins = (res.data['currentCoins'] ?? _coins + 50) as int;
+          _coins = ((res.data['currentCoins'] ?? _coins + 50) as num).toInt();
           _xp += 50;
         });
         _showSnack('Referral Code applied! Credited 50 Coins.');
@@ -213,8 +213,8 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
     );
   }
 
-  Future<void> _downloadFile(String fileUrl, String title) async {
-    await FileDownloadHelper.downloadAndOpen(fileUrl, title, _showSnack);
+  Future<void> _downloadFile(String fileUrl, String title, String noteId) async {
+    await FileDownloadHelper.downloadAndOpen(fileUrl, title, noteId, _showSnack);
   }
 
   @override
@@ -288,6 +288,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
                     final title = note['title'] ?? 'Untitled';
                     final subject = note['subject'] ?? 'General';
                     final fileUrl = note['fileUrl'] ?? '';
+                    final noteId = note['_id'] ?? '';
                     return GlassCard(
                       borderRadius: 14,
                       opacity: 0.04,
@@ -307,7 +308,7 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
                           ),
                           IconButton(
                             icon: const Icon(Icons.download_for_offline_rounded, color: AppColors.primary),
-                            onPressed: () => _downloadFile(fileUrl, title),
+                            onPressed: () => _downloadFile(fileUrl, title, noteId),
                           ),
                         ],
                       ),

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   createOrder,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   getMyOrders,
   getSellerOrders,
   getAllOrders,
@@ -14,6 +16,9 @@ const { protect, authorize } = require('../middleware/auth');
 router.route('/')
   .post(protect, createOrder)
   .get(protect, getMyOrders);
+
+router.post('/razorpay/create', protect, createRazorpayOrder);
+router.post('/razorpay/verify', protect, verifyRazorpayPayment);
 
 // Seller: view orders for their listed items
 router.route('/seller')

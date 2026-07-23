@@ -21,6 +21,19 @@ const PlatformConfigSchema = new mongoose.Schema({
     type: Number,
     default: 10, // percentage of cash paid / coins paid taken by admin
   },
+  deliveryCost: {
+    type: Number,
+    default: 50,
+  },
+  freeDeliveryMinPrice: {
+    type: Number,
+    default: 500,
+  },
+  freeDeliveryRule: {
+    type: String,
+    enum: ['None', 'Price Only', 'Same City', 'Same Pincode'],
+    default: 'None',
+  },
   appName: {
     type: String,
     default: 'EduMarket',

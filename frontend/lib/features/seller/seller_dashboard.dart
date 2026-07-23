@@ -625,7 +625,7 @@ class _SellerDashboardState extends State<SellerDashboard> with SingleTickerProv
           final order = _orders[index];
           final isPhysical = order['itemType'] == 'Physical';
           final pickupDate = order['pickupDate'];
-          final coinsUsed = order['coinsUsed'] as int? ?? 0;
+          final coinsUsed = (order['coinsUsed'] as num?)?.toInt() ?? 0;
           final status = order['status'] as String? ?? 'Pending';
 
           Color statusColor = Colors.grey;

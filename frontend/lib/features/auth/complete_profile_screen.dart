@@ -85,7 +85,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         await prefs.setString('user_department', user['department'] ?? '');
         await prefs.setString('user_phone', user['phone'] ?? '');
         await prefs.setString('user_role', user['role'] ?? 'Student');
-        await prefs.setInt('user_coins', (user['coins'] ?? 100) as int);
+        await prefs.setInt('user_coins', ((user['coins'] ?? 100) as num).toInt());
         await prefs.setBool('profile_complete', true);
 
         if (mounted) {

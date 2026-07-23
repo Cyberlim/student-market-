@@ -29,6 +29,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _userRole = 'Student';
   int _userCoins = 0;
   bool _loadingProfile = true;
+  int _followersCount = 0;
+  int _followingCount = 0;
   String _selectedLanguage = 'English (US)';
 
   @override
@@ -67,7 +69,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await prefs.setString('user_phone', u['phone'] ?? '');
         await prefs.setString('user_bio', u['bio'] ?? '');
         await prefs.setString('user_role', u['role'] ?? 'Student');
-        await prefs.setInt('user_coins', (u['coins'] ?? 0) as int);
+        await prefs.setInt('user_coins', ((u['coins'] ?? 0) as num).toInt());
+        final followersList = u['followers'] as List?;
+        final followingList = u['following'] as List?;
+        final followersCount = followersList?.length ?? 0;
+        final followingCount = followingList?.length ?? 0;
+        await prefs.setInt('user_followers', followersCount);
+        await prefs.setInt('user_following', followingCount);
         if (mounted) {
           setState(() {
             _userName = u['name'] ?? '';
@@ -78,7 +86,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _userPhone = u['phone'] ?? '';
             _userBio = u['bio'] ?? '';
             _userRole = u['role'] ?? 'Student';
-            _userCoins = (u['coins'] ?? 0) as int;
+            _userCoins = ((u['coins'] ?? 0) as num).toInt();
+            _followersCount = followersCount;
+            _followingCount = followingCount;
           });
         }
       }
@@ -103,6 +113,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _userBio = prefs.getString('user_bio') ?? '';
         _userRole = prefs.getString('user_role') ?? 'Student';
         _userCoins = prefs.getInt('user_coins') ?? 0;
+        _followersCount = prefs.getInt('user_followers') ?? 0;
+        _followingCount = prefs.getInt('user_following') ?? 0;
+        _selectedLanguage = prefs.getString('user_language') ?? 'English (US)';
       });
     }
   }
@@ -131,7 +144,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 return ListTile(
                   title: Text(lang, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
                   trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
-                  onTap: () {
+                  onTap: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('user_language', lang);
                     setState(() => _selectedLanguage = lang);
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Language set to $lang')));
@@ -519,6 +534,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(_userRole, style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Text('$_followersCount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text(' Followers', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    const SizedBox(width: 12),
+                    Text('$_followingCount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text(' Following', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ],
                 ),
               ],
             ),

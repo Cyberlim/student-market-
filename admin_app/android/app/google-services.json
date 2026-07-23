@@ -12,7 +12,12 @@
           "package_name": "com.college.notes.notes_marketplace"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "86243436179-7543sabtenl2muiabjlbudte6m4aee5t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDI04jDvp2Z42Dv6ZB7ECl_8Rb2qse7wgY"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "86243436179-7543sabtenl2muiabjlbudte6m4aee5t.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "86243436179-q1uj66as0oe444kpo97b5scm86u4nna7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.college.notes.notesMarketplace"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +48,20 @@
           "package_name": "com.edumarket.admin_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "86243436179-qn1s83i0pf5po0i34b0al6etm2fhnf7m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.edumarket.admin_app",
+            "certificate_hash": "fd117ac64a40f49d3898850e5b6c86657486bc41"
+          }
+        },
+        {
+          "client_id": "86243436179-7543sabtenl2muiabjlbudte6m4aee5t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDI04jDvp2Z42Dv6ZB7ECl_8Rb2qse7wgY"
@@ -39,7 +69,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "86243436179-7543sabtenl2muiabjlbudte6m4aee5t.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "86243436179-q1uj66as0oe444kpo97b5scm86u4nna7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.college.notes.notesMarketplace"
+              }
+            }
+          ]
         }
       }
     }

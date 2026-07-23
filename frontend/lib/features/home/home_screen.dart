@@ -175,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         if (profileRes.statusCode == 200 && profileRes.data['success'] == true) {
           final user = profileRes.data['user'] ?? {};
-          final coins = (user['coins'] ?? 0) as int;
+          final coins = ((user['coins'] ?? 0) as num).toInt();
           final name = user['name'] ?? '';
           final avatar = user['avatar'] ?? '';
           
@@ -441,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildSectionHeader(context, '👑 Top Sellers', () {}),
+                                _buildSectionHeader(context, '👑 Top Sellers', () => _showAllSellers(context, sellersList)),
                                 const SizedBox(height: 12),
                                 _buildTopSellersList(sellersList),
                                 const SizedBox(height: 28),
@@ -457,10 +457,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 28),
   
                         // Campus Deals Banner
-                        _realBanners.length > 1
-                            ? _buildDynamicBanner(context, _realBanners[1])
-                            : _buildClassifiedsPromoCard(context),
-                        const SizedBox(height: 28),
+                        if (_realBanners.length > 1)
+                          _buildDynamicBanner(context, _realBanners[1]),
+                        if (_realBanners.length > 1)
+                          const SizedBox(height: 28),
                       ],
   
                       // Recommended Notes
@@ -519,25 +519,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(4),
-                    child: _configAppLogoUrl.startsWith('http')
-                        ? Image.network(
-                            _configAppLogoUrl,
-                            width: isCompact ? 20 : 24,
-                            height: isCompact ? 20 : 24,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Image.asset(
-                              'assets/images/logo.png',
-                              width: isCompact ? 20 : 24,
-                              height: isCompact ? 20 : 24,
-                              fit: BoxFit.contain,
-                            ),
-                          )
-                        : Image.asset(
-                            'assets/images/logo.png',
-                            width: isCompact ? 20 : 24,
-                            height: isCompact ? 20 : 24,
-                            fit: BoxFit.contain,
-                          ),
+                    child: Image.asset(
+                      'assets/images/edu logo.jpg',
+                      width: isCompact ? 26 : 32,
+                      height: isCompact ? 26 : 32,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1194,109 +1181,86 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFlashSaleBanner(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: AppColors.accentGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  void _showAllSellers(BuildContext context, List<Map<String, dynamic>> sellers) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          builder: (context, scrollController) {
+            return Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'FLASH DEAL',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Get 50% Off on AI Credits',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('All Sellers', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Summarize & Quiz notes inside 1 tap.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: sellers.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final s = sellers[index];
+                      final name = s['name'] ?? 'Unknown';
+                      
+                      return StatefulBuilder(
+                        builder: (context, setModalState) {
+                          final isFollowing = _followedSellers.contains(name);
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              radius: 24,
+                              backgroundImage: s['avatar'].toString().startsWith('http') ? NetworkImage(s['avatar']) : null,
+                              child: s['avatar'].toString().startsWith('http') ? null : const Icon(Icons.person),
+                            ),
+                            title: Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                            subtitle: Text(s['college'] ?? '', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                            trailing: ElevatedButton(
+                              onPressed: () {
+                                setModalState(() {
+                                  if (isFollowing) {
+                                    _followedSellers.remove(name);
+                                  } else {
+                                    _followedSellers.add(name);
+                                  }
+                                });
+                                setState(() {}); // Update the background screen too
+                                _showSnack(isFollowing ? 'Unfollowed $name' : 'Followed $name');
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isFollowing ? Colors.grey.shade300 : AppColors.primary,
+                                foregroundColor: isFollowing ? Colors.black : Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              child: Text(isFollowing ? 'Following' : 'Follow'),
+                            ),
+                          );
+                        }
+                      );
+                    },
+                  ),
                 ),
               ],
-            ),
-          ),
-          const Icon(Icons.flash_on_rounded, size: 54, color: Colors.white),
-        ],
-      ),
-    ).animate().scale(duration: 500.ms, curve: Curves.easeOut);
+            );
+          },
+        );
+      },
+    );
   }
-
-  Widget _buildClassifiedsPromoCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Colors.teal, Colors.cyan]),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'CAMPUS SWAP',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sell Your Used Items!',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'List calculators, laptops, cycles for cash.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.sell_rounded, size: 54, color: Colors.white),
-        ],
-      ),
-    ).animate().scale(duration: 500.ms, curve: Curves.easeOut);
-  }
-
   Widget _buildDynamicBanner(BuildContext context, dynamic banner) {
     final title = banner['title'] ?? '';
     final subtitle = banner['subtitle'] ?? '';
@@ -1440,7 +1404,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBannersCarousel(BuildContext context) {
     if (_realBanners.isEmpty) {
-      return _buildFlashSaleBanner(context);
+      return const SizedBox.shrink();
     }
     if (_realBanners.length == 1) {
       return _buildDynamicBanner(context, _realBanners[0]);

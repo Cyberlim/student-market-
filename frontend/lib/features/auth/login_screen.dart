@@ -141,6 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save session parameters locally
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', jwtToken);
+        await prefs.setString('user_id', userData['_id'] ?? '');
         await prefs.setString('user_name', userData['name'] ?? '');
         await prefs.setString('user_email', userData['email'] ?? '');
         await prefs.setString('user_avatar', userData['avatar'] ?? '');
@@ -148,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('user_college', userData['college'] ?? '');
         await prefs.setString('user_department', userData['department'] ?? '');
         await prefs.setString('user_phone', userData['phone'] ?? '');
-        await prefs.setInt('user_coins', (userData['coins'] ?? 100) as int);
+        await prefs.setInt('user_coins', ((userData['coins'] ?? 100) as num).toInt());
         final isProfileComplete = userData['isProfileComplete'] == true;
         await prefs.setBool('profile_complete', isProfileComplete);
 

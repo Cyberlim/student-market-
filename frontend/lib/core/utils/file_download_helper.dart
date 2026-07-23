@@ -10,7 +10,28 @@ class FileDownloadHelper {
   static final Dio _dio = Dio();
   static int _downloadIdCounter = 1000;
 
-  static Future<void> downloadAndOpen(String fileUrl, String title, Function(String) onStatus) async {
+  static Future<String> getLocalFilePath(String noteId) async {
+    final Directory dir = await getApplicationDocumentsDirectory();
+    return '${dir.path}/note_$noteId.pdf';
+  }
+
+  static Future<bool> isDownloaded(String noteId) async {
+    final path = await getLocalFilePath(noteId);
+    return File(path).exists();
+  }
+
+  static Future<void> openLocalFile(String noteId, Function(String) onStatus) async {
+    final path = await getLocalFilePath(noteId);
+    final file = File(path);
+    if (await file.exists()) {
+      onStatus('Opening notes...');
+      OpenFilex.open(path);
+    } else {
+      onStatus('File not found. Please download again.');
+    }
+  }
+
+  static Future<void> downloadAndOpen(String fileUrl, String title, String noteId, Function(String) onStatus, {VoidCallback? onSuccess}) async {
     if (fileUrl.isEmpty) {
       onStatus('Download link not available.');
       return;
@@ -24,62 +45,48 @@ class FileDownloadHelper {
     onStatus('Starting download...');
 
     try {
-      // Use application documents directory so no storage permissions are required
-      final Directory dir = await getApplicationDocumentsDirectory();
+      final savePath = await getLocalFilePath(noteId);
+      final downloadId = _downloadIdCounter++;
       
-      // Try to extract a reasonable filename from URL, fallback to safe name
-      String fileName = finalUrl.split('/').last;
-      if (!fileName.contains('.')) {
-        fileName = 'Note_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      }
-      // sanitize filename
-      fileName = fileName.replaceAll(RegExp(r'[^\w\.\-]'), '_');
-      
-      final String savePath = '${dir.path}/$fileName';
-      final int notificationId = _downloadIdCounter++;
-      
-      int lastProgress = -1;
+      NotificationService.instance.showProgressNotification(
+        id: downloadId,
+        title: 'Downloading $title',
+        body: 'Download in progress...',
+        progress: 0,
+        maxProgress: 100,
+      );
 
       await _dio.download(
         finalUrl,
         savePath,
         onReceiveProgress: (received, total) {
           if (total != -1) {
-            int progress = ((received / total) * 100).toInt();
-            
-            // Only update notification if progress advanced by at least 1% 
-            // to avoid spamming the notification channel
-            if (progress != lastProgress) {
-              lastProgress = progress;
-              NotificationService.instance.showProgressNotification(
-                id: notificationId,
-                title: 'Downloading $title',
-                body: '$progress% completed',
-                progress: progress,
-                maxProgress: 100,
-              );
-            }
+            final progress = (received / total * 100).toInt();
+            NotificationService.instance.showProgressNotification(
+              id: downloadId,
+              title: 'Downloading $title',
+              body: '$progress% completed',
+              progress: progress,
+              maxProgress: 100,
+            );
           }
         },
       );
 
-      // Download complete
       NotificationService.instance.showNotification(
-        id: notificationId,
+        id: downloadId,
         title: 'Download Complete',
-        body: 'Tap to open $title',
+        body: title,
       );
-      
-      onStatus('Download complete! Opening file...');
 
-      // Open the file
-      final result = await OpenFilex.open(savePath);
-      if (result.type != ResultType.done) {
-        onStatus('Could not open file: ${result.message}');
+      onStatus('Download Complete. Opening file...');
+      if (onSuccess != null) {
+        onSuccess();
       }
+      OpenFilex.open(savePath);
     } catch (e) {
       debugPrint('Download error: $e');
-      onStatus('Download failed: $e');
+      onStatus('Failed to download file.');
     }
   }
 }

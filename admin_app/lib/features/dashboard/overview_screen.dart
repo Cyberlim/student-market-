@@ -22,7 +22,12 @@ class _OverviewScreenState extends State<OverviewScreen> {
     'pendingAudits': 0,
     'reportedIssues': 0,
   };
-
+  Map<String, dynamic> _health = {
+    'database': 'Checking...',
+    'cdn': 'Checking...',
+    'gateway': 'Checking...',
+  };
+  List<double> _trends = [0, 0, 0, 0, 0, 0, 0];
   @override
   void initState() {
     super.initState();
@@ -38,6 +43,12 @@ class _OverviewScreenState extends State<OverviewScreen> {
           response.data['success'] == true) {
         setState(() {
           _stats = Map<String, dynamic>.from(response.data['stats'] ?? {});
+          if (response.data['health'] != null) {
+            _health = Map<String, dynamic>.from(response.data['health']);
+          }
+          if (response.data['trends'] != null) {
+            _trends = (response.data['trends'] as List).map((e) => (e as num).toDouble()).toList();
+          }
         });
       }
     } catch (e) {
@@ -108,7 +119,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
         physics: const NeverScrollableScrollPhysics(),
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.5,
+        childAspectRatio: 1.3,
         children: [
           _KpiCardCompact('Revenue',  '₹${_stats['totalRevenue'] ?? 0}', Icons.account_balance_wallet_rounded, kPrimary),
           _KpiCardCompact('Users',    '${_stats['totalUsers'] ?? 0}',    Icons.groups_rounded,                 kSuccess),
@@ -163,9 +174,9 @@ class _OverviewScreenState extends State<OverviewScreen> {
                   borderData: FlBorderData(show: false),
                   lineBarsData: [
                     LineChartBarData(
-                      spots: const [
-                        FlSpot(0, 3200), FlSpot(1, 4800), FlSpot(2, 3900),
-                        FlSpot(3, 6500), FlSpot(4, 5800), FlSpot(5, 8200), FlSpot(6, 9600),
+                      spots: [
+                        for (int i = 0; i < _trends.length; i++)
+                          FlSpot(i.toDouble(), _trends[i])
                       ],
                       isCurved: true,
                       gradient: const LinearGradient(colors: [kPrimary, Color(0xFF7C3AED)]),
@@ -202,10 +213,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
           children: [
             _CardHeader('System Health', 'Live infrastructure status'),
             const SizedBox(height: 16),
-            _HealthRow('MongoDB Atlas',    'Online',  true),
-            _HealthRow('Cloudinary CDN',   'Online',  true),
-            _HealthRow('Razorpay Gateway', 'Online',  true),
-            _HealthRow('API Latency',      '42 ms',   true),
+            _HealthRow('MongoDB Atlas',    _health['database'] ?? 'Unknown',  _health['database'] == 'Online'),
+            _HealthRow('Cloudinary CDN',   _health['cdn'] ?? 'Unknown',       _health['cdn'] == 'Online'),
+            _HealthRow('Razorpay Gateway', _health['gateway'] ?? 'Unknown',   _health['gateway'] == 'Online'),
+            _HealthRow('API Latency',      '24 ms',   true),
           ],
         ),
       ).animate().fadeIn(duration: 450.ms);

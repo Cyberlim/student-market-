@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { getStats, getPendingNotes, getAllUsers, toggleUserBan, adjustUserCoins, uploadMedia } = require('../controllers/adminController');
+const { getStats, getPendingNotes, getAllUsers, toggleUserBan, adjustUserCoins, uploadMedia, getReports, updateReportStatus } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
 const upload = multer({
@@ -19,5 +19,7 @@ router.get('/users', getAllUsers);
 router.put('/users/:id/ban', toggleUserBan);
 router.put('/users/:id/coins', adjustUserCoins);
 router.post('/upload', upload.single('file'), uploadMedia);
+router.get('/reports', getReports);
+router.put('/reports/:id/status', updateReportStatus);
 
 module.exports = router;

@@ -62,6 +62,8 @@ const UserSchema = new mongoose.Schema({
   bio: { type: String, default: '' },
   isProfileComplete: { type: Boolean, default: false },
   fcmToken: { type: String, default: null },
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdAt: {
     type: Date,
     default: Date.now,

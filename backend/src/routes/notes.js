@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { uploadNote, getNotes, getNoteById, reviewNote, updateNoteStatus, getMyStudyNotes } = require('../controllers/noteController');
+const { uploadNote, getNotes, getNoteById, reviewNote, updateNoteStatus, getMyStudyNotes, reportNote, getNoteReviews, deleteNote } = require('../controllers/noteController');
 const { protect, authorize } = require('../middleware/auth');
 
 
@@ -33,9 +33,14 @@ router.route('/')
 router.get('/my-library', protect, getMyStudyNotes);
 
 router.route('/:id')
-  .get(getNoteById);
+  .get(getNoteById)
+  .delete(protect, authorize('Admin'), deleteNote);
 
 router.post('/:id/reviews', protect, reviewNote);
+router.get('/:id/reviews', getNoteReviews);
+
+router.post('/:id/report', protect, reportNote);
+
 
 router.put('/:id/status', protect, authorize('Admin'), updateNoteStatus);
 

@@ -122,18 +122,19 @@ exports.getMe = async (req, res) => {
 // @access  Public
 exports.googleLogin = async (req, res) => {
   try {
-    const { token } = req.body;
+    const { token, idToken } = req.body;
+    const googleToken = idToken || token; // Accept either field name
     let { name, email, avatar } = req.body;
     console.log('Incoming Google Login Request: name =', name, ', email =', email, ', avatar =', avatar);
 
     // Secure verification if GOOGLE_CLIENT_ID is active in the environment
-    if (process.env.GOOGLE_CLIENT_ID && token) {
-      console.log('Verifying Google Token...', token.substring(0, 20) + '...');
+    if (process.env.GOOGLE_CLIENT_ID && googleToken) {
+      console.log('Verifying Google Token...', googleToken.substring(0, 20) + '...');
       try {
         const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
         // Allow both the Web Client ID and Android Client ID as valid audiences
         const ticket = await client.verifyIdToken({
-          idToken: token,
+          idToken: googleToken,
           audience: [
             process.env.GOOGLE_CLIENT_ID,
             '1032186678329-6f271ih981tftgrodk6pathbov93i9h9.apps.googleusercontent.com'
@@ -141,14 +142,14 @@ exports.googleLogin = async (req, res) => {
           clockSkew: 300 // Allow up to 5 minutes of local system clock drift
         });
         const payload = ticket.getPayload();
-        email = payload.email;
-        name = payload.name;
-        avatar = payload.picture;
-      } catch (verificationError) {
+        if (payload.email) email = payload.email;
+        if (payload.name) name = payload.name;
+        if (payload.picture) avatar = payload.picture;
+        } catch (verificationError) {
         console.log('Provided token is not a JWT ID Token. Attempting Access Token verification fallback...');
         try {
           const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-          const tokenInfo = await client.getTokenInfo(token);
+          const tokenInfo = await client.getTokenInfo(googleToken);
           
           const allowedAudiences = [
             process.env.GOOGLE_CLIENT_ID,
@@ -160,7 +161,7 @@ exports.googleLogin = async (req, res) => {
             throw new Error('Access token audience mismatch');
           }
           
-          email = tokenInfo.email;
+          if (tokenInfo.email) email = tokenInfo.email;
 
           // Fetch the user's real name and profile picture from Google UserInfo API using the access token
           try {
@@ -201,18 +202,28 @@ exports.googleLogin = async (req, res) => {
 
     let user = await User.findOne({ email });
 
+    // The designated admin email always gets/keeps the Admin role
+    const ADMIN_EMAIL = 'kuldeepsengar5678@gmail.com';
+
     if (!user) {
       const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       user = await User.create({
         name,
         email,
-        password: Math.random().toString(36).substring(2, 10), // temporary random password
+        password: Math.random().toString(36).substring(2, 10),
         referralCode,
+        role: email.toLowerCase() === ADMIN_EMAIL ? 'Admin' : 'Student',
         avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=120',
       });
-    } else if (avatar && (!user.avatar || user.avatar.includes('photo-1535713875002-d1d0cf377fde'))) {
-      user.avatar = avatar;
-      await user.save();
+    } else {
+      // Always keep admin role in sync for the designated admin email
+      if (email.toLowerCase() === ADMIN_EMAIL && user.role !== 'Admin') {
+        user.role = 'Admin';
+        await user.save();
+      } else if (avatar && (!user.avatar || user.avatar.includes('photo-1535713875002-d1d0cf377fde'))) {
+        user.avatar = avatar;
+        await user.save();
+      }
     }
 
     res.status(200).json({
@@ -385,4 +396,58 @@ exports.updateFcmToken = async (req, res) => {
   }
 };
 
+// Follow a user
+exports.followUser = async (req, res) => {
+  try {
+    const userToFollowId = req.params.id;
+    const currentUserId = req.user.id;
 
+    if (userToFollowId === currentUserId) {
+      return res.status(400).json({ success: false, message: 'You cannot follow yourself' });
+    }
+
+    const userToFollow = await User.findById(userToFollowId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!userToFollow) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!currentUser.following.includes(userToFollowId)) {
+      currentUser.following.push(userToFollowId);
+      userToFollow.followers.push(currentUserId);
+      await currentUser.save();
+      await userToFollow.save();
+    }
+
+    res.status(200).json({ success: true, message: 'Successfully followed user' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Unfollow a user
+exports.unfollowUser = async (req, res) => {
+  try {
+    const userToUnfollowId = req.params.id;
+    const currentUserId = req.user.id;
+
+    const userToUnfollow = await User.findById(userToUnfollowId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!userToUnfollow) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (currentUser.following.includes(userToUnfollowId)) {
+      currentUser.following = currentUser.following.filter(id => id.toString() !== userToUnfollowId);
+      userToUnfollow.followers = userToUnfollow.followers.filter(id => id.toString() !== currentUserId);
+      await currentUser.save();
+      await userToUnfollow.save();
+    }
+
+    res.status(200).json({ success: true, message: 'Successfully unfollowed user' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

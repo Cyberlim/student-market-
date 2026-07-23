@@ -1,5 +1,6 @@
 const Note = require('../models/Note');
 const Review = require('../models/Review');
+const Report = require('../models/Report');
 const { uploadToCloudinary } = require('../config/cloudinary');
 
 // @desc    Upload new Note
@@ -21,8 +22,14 @@ exports.uploadNote = async (req, res) => {
     if (req.files) {
       if (req.files['file'] && req.files['file'][0]) {
         try {
-          fileUrl = await uploadToCloudinary(req.files['file'][0].buffer, 'raw');
-          
+          fileUrl = await uploadToCloudinary(req.files['file'][0].buffer, 'raw', req.files['file'][0].originalname);
+          // Cloudinary raw uploads strip the extension from the URL.
+          // Append .pdf so the file is served with the correct MIME type.
+          const origName = req.files['file'][0].originalname || '';
+          if (fileUrl && origName.toLowerCase().endsWith('.pdf') && !fileUrl.toLowerCase().endsWith('.pdf')) {
+            fileUrl = fileUrl + '.pdf';
+          }
+
           // Generate first page thumbnail dynamically if it's a PDF note
           if (!isPhysical) {
             const fileName = req.files['file'][0].originalname || '';
@@ -198,7 +205,7 @@ exports.getNotes = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const notes = await Note.find(query)
-      .populate('seller', 'name email avatar college')
+      .populate('seller', 'name email avatar college followers following addresses')
       .skip(skip)
       .limit(limitNum)
       .sort(sortOption);
@@ -222,11 +229,25 @@ exports.getNotes = async (req, res) => {
 // @access  Public
 exports.getNoteById = async (req, res) => {
   try {
-    const note = await Note.findById(req.params.id).populate('seller', 'name email avatar college');
+    const note = await Note.findById(req.params.id).populate('seller', 'name email avatar college followers following addresses');
     if (!note) {
       return res.status(404).json({ success: false, message: 'Note not found' });
     }
-    res.status(200).json({ success: true, data: note });
+    const relatedNotes = await Note.find({
+      subject: note.subject,
+      _id: { $ne: note._id },
+      status: 'Approved',
+      isSold: { $ne: true }
+    }).limit(5).populate('seller', 'name email avatar followers following addresses');
+
+    const frequentlyBought = await Note.find({
+      category: note.category,
+      _id: { $ne: note._id },
+      status: 'Approved',
+      isSold: { $ne: true }
+    }).sort({ price: 1 }).limit(3).populate('seller', 'name email avatar followers following addresses');
+
+    res.status(200).json({ success: true, data: note, relatedNotes, frequentlyBought });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -365,7 +386,7 @@ exports.getMyStudyNotes = async (req, res) => {
     };
 
     const notes = await Note.find(query)
-      .populate('seller', 'name email avatar college')
+      .populate('seller', 'name email avatar college followers following addresses')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -378,3 +399,56 @@ exports.getMyStudyNotes = async (req, res) => {
   }
 };
 
+// @desc    Get Reviews for Note
+// @route   GET /api/notes/:id/reviews
+// @access  Public
+exports.getNoteReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ note: req.params.id })
+      .populate('user', 'name avatar')
+      .sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: reviews });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Report a Note
+// @route   POST /api/notes/:id/report
+// @access  Private
+exports.reportNote = async (req, res) => {
+  try {
+    const { reason, details } = req.body;
+    
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'Reason is required' });
+    }
+
+    const report = await Report.create({
+      reporter: req.user.id,
+      note: req.params.id,
+      reason,
+      details
+    });
+
+    res.status(201).json({ success: true, message: 'Report submitted successfully', data: report });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Delete a note
+// @route   DELETE /api/notes/:id
+// @access  Private (Admin Only)
+exports.deleteNote = async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id);
+    if (!note) {
+      return res.status(404).json({ success: false, message: 'Note not found' });
+    }
+    await note.deleteOne();
+    res.status(200).json({ success: true, message: 'Note deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

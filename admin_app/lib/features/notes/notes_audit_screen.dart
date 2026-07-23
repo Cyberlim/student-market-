@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_service.dart';
 import '../../core/constants/colors.dart';
+import 'pdf_viewer_screen.dart';
 
 class NotesAuditScreen extends StatefulWidget {
   const NotesAuditScreen({super.key});
@@ -84,16 +85,51 @@ class _NotesAuditScreenState extends State<NotesAuditScreen>
         data: {'status': status},
       );
       if (response != null && response.statusCode == 200) {
-        setState(() => _queue.removeWhere((n) => n['id'] == noteId));
-        _snack(
-          isApprove ? '✅ Item approved & published!' : '❌ Item rejected. Seller notified.',
-          isApprove ? kSuccess : kError,
-        );
+        _snack('Note status updated to $status.', kSuccess);
+        _loadPendingItems();
       } else {
-        _snack('Request failed. Try again.', kError);
+        _snack('Failed to update status.', kError);
       }
     } catch (e) {
-      _snack('Error: ${e.toString()}', kError);
+      _snack('Error: $e', kError);
+    }
+  }
+
+  Future<void> _deleteNote(Map<String, dynamic> item) async {
+    final noteId = item['id'];
+    if (noteId == null) return;
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Note'),
+        content: const Text('Are you sure you want to permanently delete this note?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: kError),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final response = await AdminApiService.request(
+        'DELETE',
+        '/api/notes/$noteId',
+      );
+      if (response != null && response.statusCode == 200) {
+        _snack('Note deleted successfully.', kSuccess);
+        _loadPendingItems();
+      } else {
+        _snack('Failed to delete note.', kError);
+      }
+    } catch (e) {
+      _snack('Error: $e', kError);
     }
   }
 
@@ -228,6 +264,7 @@ class _NotesAuditScreenState extends State<NotesAuditScreen>
           index: i,
           onApprove: () => _updateStatus(item, 'Approved'),
           onReject: () => _updateStatus(item, 'Rejected'),
+          onDelete: () => _deleteNote(item),
         ).animate().fadeIn(duration: 280.ms, delay: (i * 50).ms);
       },
     );
@@ -261,7 +298,7 @@ class _NotesAuditScreenState extends State<NotesAuditScreen>
 class _ItemCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool isPhysical;
-  final VoidCallback onApprove, onReject;
+  final VoidCallback onApprove, onReject, onDelete;
   final int index;
 
   const _ItemCard({
@@ -269,6 +306,7 @@ class _ItemCard extends StatelessWidget {
     required this.isPhysical,
     required this.onApprove,
     required this.onReject,
+    required this.onDelete,
     required this.index,
   });
 
@@ -449,6 +487,30 @@ class _ItemCard extends StatelessWidget {
                   errorBuilder: (_, __, ___) => const SizedBox(),
                 ),
               ),
+              const SizedBox(height: 8),
+              if (item['fileUrl'] != null && (item['fileUrl'] as String).isNotEmpty)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                        final pdfUrl = item['fileUrl'] as String;
+                        final title = item['title'] as String;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PdfViewerScreen(url: pdfUrl, title: title),
+                          ),
+                        );
+                      },
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                    label: Text('View Full PDF', style: GoogleFonts.inter(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kPrimary,
+                      side: const BorderSide(color: kPrimary),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
             ]
           ],
 
@@ -462,8 +524,8 @@ class _ItemCard extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded, size: 15),
                 label: Text('Reject', style: GoogleFonts.inter(fontSize: 13)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: kError,
-                  side: const BorderSide(color: kError),
+                  foregroundColor: kWarning,
+                  side: const BorderSide(color: kWarning),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
@@ -477,6 +539,20 @@ class _ItemCard extends StatelessWidget {
                 label: Text('Approve', style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kSuccess,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_rounded, size: 15),
+                label: Text('Delete', style: GoogleFonts.inter(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kError,
+                  side: const BorderSide(color: kError),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),

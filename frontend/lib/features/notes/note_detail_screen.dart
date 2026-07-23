@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
 import '../../widgets/glass_card.dart';
@@ -23,18 +24,31 @@ class NoteDetailScreen extends StatefulWidget {
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   bool _isWishlisted = false;
   bool _isPurchased = false;
+  bool _isDownloaded = false;
   bool _isFollowing = false;
+  bool _isSeller = false;
+
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  double _deliveryCost = 50.0;
+  double _freeDeliveryMinPrice = 500.0;
+  String _freeDeliveryRule = 'None';
 
   bool _previewStatusLoaded = false;
   bool _previewUsed = false;
   Map<String, dynamic>? _note;
-  Map<String, dynamic> get _details => _note ?? _mockDetails;
+  Map<String, dynamic> get _details => _note ?? {};
   bool _isPhysical = false;
-  late final Map<String, dynamic> _mockDetails;
 
   bool _loadingDetails = false;
   int _activePhysicalImageIndex = 0;
   int _userCoins = 0;
+
+  late Razorpay _razorpay;
+  String? _currentPendingOrderId;
+  int _currentCoinsUsed = 0;
+  double _currentCashPaid = 0.0;
+  Map<String, dynamic>? _currentAddress;
 
   bool get _isRealObjectId => !widget.noteId.startsWith('physical_') && !widget.noteId.startsWith('placeholder_');
 
@@ -48,8 +62,15 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       if (response.statusCode == 200 && response.data['success'] == true) {
         setState(() {
           _note = response.data['data'];
+          if (response.data['relatedNotes'] != null) {
+            _relatedNotes = List<dynamic>.from(response.data['relatedNotes']);
+          }
+          if (response.data['frequentlyBought'] != null) {
+            _frequentlyBought = List<dynamic>.from(response.data['frequentlyBought']);
+          }
           if (_note != null) {
             _isPhysical = _note!['itemType'] == 'Physical';
+            _checkIfUserIsSeller();
           }
         });
       }
@@ -62,41 +83,78 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     }
   }
 
+  Future<void> _checkIfUserIsSeller() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    if (_note != null) {
+      final sellerObj = _note!['seller'];
+      if (sellerObj != null && sellerObj is Map) {
+        final sellerId = sellerObj['_id']?.toString();
+        if (userId != null && sellerId == userId) {
+          setState(() {
+            _isSeller = true;
+          });
+        }
+        
+        final followersList = sellerObj['followers'] as List?;
+        setState(() {
+          _sellerFollowersCount = followersList?.length ?? 0;
+          if (userId != null && followersList != null) {
+            _isFollowing = followersList.contains(userId);
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadFile(String fileUrl, String title) async {
+    await FileDownloadHelper.downloadAndOpen(
+      fileUrl, 
+      title, 
+      widget.noteId, // Pass noteId for stable tracking
+      _showSnack,
+      onSuccess: () {
+        setState(() {
+          _isDownloaded = true;
+        });
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    
     _isPhysical = widget.noteId.startsWith('physical_');
-    _mockDetails = _isPhysical ? {
-      'title': 'Scientific Calculator FX-991EX',
-      'category': 'Calculators',
-      'price': 999,
-      'condition': 'Like New',
-      'seller': 'Rahul Sharma',
-      'description': 'Barely used calculator. Good for engineering students. Comes with original box and manual.',
-      'images': [
-        'https://images.unsplash.com/photo-1574607383476-f517f260d30b?q=80&w=800',
-        'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=800',
-      ],
-      'rating': '4.9',
-      'downloads': 'N/A',
-    } : {
-      'title': 'Data Structures & Algorithms Lecture Notes',
-      'college': 'IIT Bombay',
-      'department': 'Computer Science',
-      'subject': 'Data Structures',
-      'teacher': 'Prof. Raghavan K.',
-      'pages': '124',
-      'rating': '4.8',
-      'downloads': '1,248',
-      'language': 'English',
-      'uploadDate': '2026-06-15',
-      'price': 199,
-      'description': 'Comprehensive lecture notes covering Arrays, Linked Lists, Trees, Graphs, Sorting Algorithms, Dynamic Programming, and Complexity Analysis. Includes code snippets in C++ and Python, along with practice exam problems and solutions.',
-    };
     _loadPreviewStatus();
     _fetchNoteDetails();
     _checkPurchaseStatus();
     _fetchUserCoins();
+    if (_isPhysical) {
+      _fetchDeliveryCost();
+    }
+  }
+
+  Future<void> _fetchDeliveryCost() async {
+    try {
+      final dio = Dio();
+      final res = await dio.get('$backendBaseUrl/settings');
+      if (res.statusCode == 200 && res.data['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _deliveryCost = (res.data['data']['deliveryCost'] ?? 50.0).toDouble();
+            _freeDeliveryMinPrice = (res.data['data']['freeDeliveryMinPrice'] ?? 500.0).toDouble();
+            _freeDeliveryRule = res.data['data']['freeDeliveryRule'] ?? 'None';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching delivery cost: $e');
+    }
   }
 
   Future<void> _loadPreviewStatus() async {
@@ -115,16 +173,10 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     });
   }
 
-  final List<Map<String, dynamic>> _relatedNotes = [
-    {'title': 'DBMS Practical Lab Manual', 'price': '₹99', 'rating': '4.6', 'color': AppColors.secondary},
-    {'title': 'Theory of Computation Guide', 'price': '₹149', 'rating': '4.9', 'color': AppColors.accent},
-    {'title': 'Operating System Complete Notes', 'price': '₹199', 'rating': '4.7', 'color': AppColors.success},
-  ];
-
-  final List<Map<String, dynamic>> _reviews = [
-    {'user': 'Aditya R.', 'rating': 5, 'comment': 'Excellent notes! The explanations for recursion and dynamic programming are top notch.', 'date': '2 days ago'},
-    {'user': 'Sneha K.', 'rating': 4, 'comment': 'Very helpful for semester exams. Deducted one star because a few code snippets had typos.', 'date': '1 week ago'},
-  ];
+  List<dynamic> _relatedNotes = [];
+  List<dynamic> _frequentlyBought = [];
+  List<dynamic> _reviews = []; // Will be populated with real data when backend supports it
+  int _sellerFollowersCount = 0;
 
   void _showReportDialog() {
     String selectedReason = 'Plagiarism';
@@ -206,6 +258,15 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           setState(() {
             _isPurchased = true;
           });
+          // Also check if already downloaded
+          if (!_isPhysical) {
+            final downloaded = await FileDownloadHelper.isDownloaded(widget.noteId);
+            if (downloaded) {
+              setState(() {
+                _isDownloaded = true;
+              });
+            }
+          }
         }
       }
     } catch (e) {
@@ -226,7 +287,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       if (response.statusCode == 200 && response.data['success'] == true) {
         if (mounted) {
           setState(() {
-            _userCoins = (response.data['user']['coins'] ?? 0) as int;
+            _userCoins = ((response.data['user']['coins'] ?? 0) as num).toInt();
           });
         }
       }
@@ -378,9 +439,41 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     );
   }
 
+  double _getCalculatedDeliveryCost(Map<String, dynamic>? buyerAddress) {
+    if (!_isPhysical) return 0.0;
+    
+    final double priceVal = ((_details['price'] ?? 0) as num).toDouble();
+    if (_freeDeliveryRule == 'None') return _deliveryCost;
+
+    if (priceVal >= _freeDeliveryMinPrice) {
+      if (_freeDeliveryRule == 'Price Only') return 0.0;
+
+      final sellerObj = _details['seller'];
+      if (sellerObj != null && sellerObj is Map) {
+        final List<dynamic> sellerAddresses = sellerObj['addresses'] ?? [];
+        if (sellerAddresses.isNotEmpty && buyerAddress != null) {
+          final defaultSellerAddr = sellerAddresses.firstWhere((a) => a['isDefault'] == true, orElse: () => sellerAddresses.first);
+          
+          if (_freeDeliveryRule == 'Same City') {
+            final String sCity = defaultSellerAddr['city']?.toString().toLowerCase().trim() ?? '';
+            final String bCity = buyerAddress['city']?.toString().toLowerCase().trim() ?? '';
+            if (sCity.isNotEmpty && sCity == bCity) return 0.0;
+          } else if (_freeDeliveryRule == 'Same Pincode') {
+            final String sPin = defaultSellerAddr['pinCode']?.toString().trim() ?? '';
+            final String bPin = buyerAddress['pinCode']?.toString().trim() ?? '';
+            if (sPin.isNotEmpty && sPin == bPin) return 0.0;
+          }
+        }
+      }
+    }
+    return _deliveryCost;
+  }
+
   void _showCheckoutSummarySheet(Map<String, dynamic>? address) {
     final double priceVal = ((_details['price'] ?? 0) as num).toDouble();
-    int selectedPercent = _userCoins >= priceVal ? 100 : 0;
+    final double currentDeliveryCost = _getCalculatedDeliveryCost(address);
+    final double totalPayable = priceVal + currentDeliveryCost;
+    int selectedPercent = _userCoins >= totalPayable ? 100 : 0;
 
     showModalBottomSheet(
       context: context,
@@ -389,9 +482,9 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            int calculatedCoins = (priceVal * (selectedPercent / 100.0)).round();
+            int calculatedCoins = (totalPayable * (selectedPercent / 100.0)).round();
             if (calculatedCoins > _userCoins) calculatedCoins = _userCoins;
-            final double calculatedCash = (priceVal - calculatedCoins).clamp(0.0, priceVal);
+            final double calculatedCash = (totalPayable - calculatedCoins).clamp(0.0, totalPayable);
 
             String buttonLabel;
             if (calculatedCash == 0) {
@@ -433,8 +526,16 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Shipping'),
-                          const Text('Free', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                          const Text('Delivery Cost'),
+                          Text(currentDeliveryCost == 0 ? 'Free' : '₹${currentDeliveryCost.toStringAsFixed(0)}', style: TextStyle(color: currentDeliveryCost == 0 ? AppColors.success : null, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Payable', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('₹${totalPayable.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -544,7 +645,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       children: [
                         const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         Text(
-                          '₹${priceVal.toStringAsFixed(0)}',
+                          '₹${totalPayable.toStringAsFixed(0)}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
                         ),
                       ],
@@ -554,7 +655,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       text: buttonLabel,
                       onPressed: () {
                         Navigator.pop(ctx);
-                        _saveOrderToBackendWithSplit(address, calculatedCoins, calculatedCash);
+                        _saveOrderToBackendWithSplit(address, calculatedCoins, calculatedCash, currentDeliveryCost);
                       },
                     ),
                   ],
@@ -599,10 +700,55 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     }
   }
 
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token') ?? '';
+      if (token.isEmpty) return;
+
+      final dio = Dio();
+      final res = await dio.post(
+        '$backendBaseUrl/orders/razorpay/verify',
+        data: {
+          'razorpay_payment_id': response.paymentId,
+          'razorpay_order_id': response.orderId,
+          'razorpay_signature': response.signature,
+          'orderId': _currentPendingOrderId
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (res.statusCode == 200 && res.data['success'] == true) {
+        setState(() {
+          _isPurchased = true;
+          _userCoins = (_userCoins - _currentCoinsUsed).clamp(0, _userCoins);
+        });
+        _showSnack('Order placed! Paid ₹${_currentCashPaid.toStringAsFixed(0)} + $_currentCoinsUsed coins 🎉');
+
+        await _saveOrderToPrefs(res.data['data']);
+
+        if (_isPhysical && mounted) {
+          context.push('/orders');
+        }
+      }
+    } catch (e) {
+      _showSnack('Payment verification failed: $e');
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    _showSnack('Payment failed: ${response.message}');
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    _showSnack('External wallet selected: ${response.walletName}');
+  }
+
   Future<void> _saveOrderToBackendWithSplit(
     Map<String, dynamic>? address,
     int coinsUsed,
     double cashPaid,
+    double deliveryCost,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -615,38 +761,72 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       final price = ((_details['price'] ?? 0) as num).toDouble();
       final dio = Dio();
 
-      final response = await dio.post(
-        '$backendBaseUrl/orders',
-        data: {
-          'noteId': widget.noteId,
-          'price': price,
-          'coinsUsed': coinsUsed,
-          'cashPaid': cashPaid,
-          'shippingAddress': address != null
-              ? {
-                  'fullName': address['fullName'],
-                  'phoneNumber': address['phoneNumber'],
-                  'addressLine': address['addressLine'],
-                  'city': address['city'],
-                  'state': address['state'],
-                  'pinCode': address['pinCode'],
-                }
-              : null,
-        },
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
+      final orderData = {
+        'noteId': widget.noteId,
+        'price': price,
+        'deliveryCost': deliveryCost,
+        'coinsUsed': coinsUsed,
+        'cashPaid': cashPaid,
+        'shippingAddress': address != null
+            ? {
+                'fullName': address['fullName'],
+                'phoneNumber': address['phoneNumber'],
+                'addressLine': address['addressLine'],
+                'city': address['city'],
+                'state': address['state'],
+                'pinCode': address['pinCode'],
+              }
+            : null,
+      };
 
-      if (response.statusCode == 201 && response.data['success'] == true) {
-        setState(() {
-          _isPurchased = true;
-          _userCoins = (_userCoins - coinsUsed).clamp(0, _userCoins);
-        });
-        _showSnack('Order placed! Paid ₹${cashPaid.toStringAsFixed(0)} + $coinsUsed coins 🎉');
+      if (cashPaid > 0) {
+        // Razorpay Flow
+        final response = await dio.post(
+          '$backendBaseUrl/orders/razorpay/create',
+          data: orderData,
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
 
-        await _saveOrderToPrefs(response.data['data']);
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          _currentPendingOrderId = response.data['dbOrder']['_id'];
+          _currentCoinsUsed = coinsUsed;
+          _currentCashPaid = cashPaid;
+          _currentAddress = address;
 
-        if (_isPhysical && mounted) {
-          context.push('/orders');
+          var options = {
+            'key': response.data['keyId'], 
+            'amount': response.data['amount'], 
+            'name': 'EduMarket',
+            'description': 'Purchase: ${_details['title'] ?? 'Item'}',
+            'order_id': response.data['orderId'],
+            'prefill': {
+              'contact': address?['phoneNumber'] ?? '',
+              'email': ''
+            },
+          };
+
+          _razorpay.open(options);
+        }
+      } else {
+        // Free / 100% Coins Flow (Bypass Razorpay)
+        final response = await dio.post(
+          '$backendBaseUrl/orders',
+          data: orderData,
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+
+        if (response.statusCode == 201 && response.data['success'] == true) {
+          setState(() {
+            _isPurchased = true;
+            _userCoins = (_userCoins - coinsUsed).clamp(0, _userCoins);
+          });
+          _showSnack('Order placed! Paid $coinsUsed coins 🎉');
+
+          await _saveOrderToPrefs(response.data['data']);
+
+          if (_isPhysical && mounted) {
+            context.push('/orders');
+          }
         }
       }
     } on DioException catch (dioErr) {
@@ -659,9 +839,11 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
 
   void _completePayment() {
     final double priceVal = ((_details['price'] ?? 0) as num).toDouble();
-    final int coinsToUse = (_userCoins >= priceVal) ? priceVal.round() : _userCoins;
-    final double cashToPay = (priceVal - coinsToUse).clamp(0.0, priceVal);
-    _saveOrderToBackendWithSplit(null, coinsToUse, cashToPay);
+    final double currentDeliveryCost = _getCalculatedDeliveryCost(null);
+    final double totalPayable = priceVal + currentDeliveryCost;
+    final int coinsToUse = (_userCoins >= totalPayable) ? totalPayable.round() : _userCoins;
+    final double cashToPay = (totalPayable - coinsToUse).clamp(0.0, totalPayable);
+    _saveOrderToBackendWithSplit(null, coinsToUse, cashToPay, currentDeliveryCost);
   }
 
   void _showSnack(String msg) {
@@ -676,13 +858,31 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     );
   }
 
-  Future<void> _downloadFile(String fileUrl, String title) async {
-    await FileDownloadHelper.downloadAndOpen(fileUrl, title, _showSnack);
-  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_loadingDetails) {
+      return Scaffold(
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_note == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const Center(child: Text('Note not found or unavailable')),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -762,45 +962,63 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Frequently Bought Together Bundle
-            _buildBundleSection(isDark),
-            const SizedBox(height: 24),
+            if (_frequentlyBought.isNotEmpty) ...[
+              // Frequently Bought Together Bundle
+              _buildBundleSection(isDark),
+              const SizedBox(height: 24),
+            ],
 
-            // Related Notes Section
-            Text(
-              'Related Study Notes',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildRelatedNotesScroll(),
-            const SizedBox(height: 24),
+            if (_relatedNotes.isNotEmpty) ...[
+              // Related Notes Section
+              Text(
+                'Related Study Notes',
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _buildRelatedNotesScroll(),
+              const SizedBox(height: 24),
+            ],
 
-            // Reviews & Ratings Section
-            Text(
-              'Customer Reviews',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildReviewsSection(isDark),
-            const SizedBox(height: 32),
+            if (_reviews.isNotEmpty) ...[
+              // Reviews & Ratings Section
+              Text(
+                'Customer Reviews',
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _buildReviewsSection(isDark),
+              const SizedBox(height: 32),
+            ],
 
             // Actions Buttons
             Row(
               children: [
                 Expanded(
                   child: GradientButton(
-                    text: _isPhysical
-                        ? (_isPurchased ? 'Track Shipping Order' : 'Order Now')
-                        : (_isPurchased ? 'Download PDF with Watermark' : 'Buy Now - ₹${_details['price'] ?? 0}'),
-                    icon: _isPurchased
-                        ? (_isPhysical ? Icons.local_shipping_rounded : Icons.download_rounded)
-                        : Icons.shopping_bag_outlined,
-                    onPressed: () {
+                    text: _isSeller 
+                        ? 'This is your listing' 
+                        : (_isPhysical
+                            ? (_isPurchased ? 'Track Shipping Order' : 'Order Now')
+                            : (_isPurchased 
+                                ? (_isDownloaded ? 'See Notes' : 'Download PDF with Watermark') 
+                                : 'Buy Now - ₹${_details['price'] ?? 0}')),
+                    icon: _isSeller
+                        ? Icons.sell_rounded
+                        : (_isPurchased
+                            ? (_isPhysical ? Icons.local_shipping_rounded : (_isDownloaded ? Icons.visibility_rounded : Icons.download_rounded))
+                            : Icons.shopping_bag_outlined),
+                    onPressed: _isSeller 
+                        ? () { _showSnack('You cannot buy your own listing.'); } 
+                        : () {
                       if (_isPurchased) {
                         if (_isPhysical) {
                           context.push('/orders');
                         } else {
-                          _downloadFile(_details['fileUrl'] ?? '', _details['title'] ?? 'Note');
+                          if (_isDownloaded) {
+                            FileDownloadHelper.openLocalFile(widget.noteId, _showSnack);
+                          } else {
+                            _downloadFile(_details['fileUrl'] ?? '', _details['title'] ?? 'Note');
+                          }
                         }
                       } else {
                         _showPurchaseSheet();
@@ -818,7 +1036,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
   }
 
   Widget _buildPhysicalPreview(bool isDark) {
-    // Get images from the details object (falls back to _mockDetails['images'] if mock)
+    // Get images from the details object
     final dynamic rawImages = _details['images'];
     List<String> images = [];
     if (rawImages is List) {
@@ -927,8 +1145,8 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
 
   Widget _buildPdfPreview(bool isDark) {
     final thumbnail = _details['thumbnailUrl'] as String?;
-    final title = _details['title'] as String? ?? _mockDetails['title'] as String? ?? 'Notes';
-    final dept = _details['department'] as String? ?? _mockDetails['department'] as String? ?? '';
+    final title = _details['title'] as String? ?? 'Notes';
+    final dept = _details['department'] as String? ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1104,6 +1322,16 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
   }
 
   Widget _buildSellerCard(bool isDark) {
+    final sellerName = _details['seller'] != null && _details['seller']['name'] != null 
+        ? _details['seller']['name'] 
+        : 'Unknown Seller';
+    final sellerAvatar = _details['seller'] != null && _details['seller']['avatar'] != null 
+        ? _details['seller']['avatar'] 
+        : 'https://ui-avatars.com/api/?name=$sellerName';
+    final sellerCollege = _details['seller'] != null && _details['seller']['college'] != null
+        ? _details['seller']['college']
+        : 'Student';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1113,9 +1341,9 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       ),
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 24,
-            backgroundImage: NetworkImage('https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=120'),
+            backgroundImage: NetworkImage(sellerAvatar),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1123,20 +1351,58 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _mockDetails['teacher'],
+                  sellerName,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 const SizedBox(height: 2),
-                const Text('Professor at CSE Dept', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                Text('$_sellerFollowersCount Followers • $sellerCollege', style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
           OutlinedButton(
-            onPressed: () {
+            onPressed: () async {
+              final sellerId = _details['seller'] != null ? _details['seller']['_id'] : null;
+              if (sellerId == null) {
+                _showSnack('Seller information unavailable');
+                return;
+              }
+              final wasFollowing = _isFollowing;
               setState(() {
                 _isFollowing = !_isFollowing;
+                _sellerFollowersCount += _isFollowing ? 1 : -1;
               });
-              _showSnack(_isFollowing ? 'Following Professor Raghavan' : 'Unfollowed Professor Raghavan');
+              
+              try {
+                final dio = Dio();
+                final prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString('jwt_token') ?? '';
+                final url = '$backendBaseUrl/auth/${wasFollowing ? 'unfollow' : 'follow'}/$sellerId';
+                
+                final response = await dio.post(
+                  url,
+                  options: Options(headers: {'Authorization': 'Bearer $token'}),
+                );
+                
+                if (response.statusCode == 200 && response.data['success']) {
+                  _showSnack(wasFollowing ? 'Unfollowed $sellerName' : 'Following $sellerName');
+                  
+                  // Update local user profile tracking silently
+                  final currFollowing = prefs.getInt('user_following') ?? 0;
+                  prefs.setInt('user_following', currFollowing + (wasFollowing ? -1 : 1));
+                } else {
+                  setState(() {
+                    _isFollowing = wasFollowing; // revert
+                    _sellerFollowersCount += wasFollowing ? 1 : -1;
+                  });
+                  _showSnack('Failed to update follow status');
+                }
+              } catch (e) {
+                setState(() {
+                  _isFollowing = wasFollowing; // revert
+                  _sellerFollowersCount += wasFollowing ? 1 : -1;
+                });
+                _showSnack('An error occurred');
+              }
             },
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1272,7 +1538,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       5,
                       (starIdx) => Icon(
                         Icons.star_rounded,
-                        color: starIdx < (r['rating'] as int) ? Colors.amber : Colors.grey,
+                        color: starIdx < (r['rating'] as num).toInt() ? Colors.amber : Colors.grey,
                         size: 14,
                       ),
                     ),

@@ -2,11 +2,20 @@ const Order = require('../models/Order');
 const Note = require('../models/Note');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 
+let razorpayInstance = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpayInstance = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 // Create a new order
 exports.createOrder = async (req, res) => {
   try {
-    const { noteId, price, shippingAddress, coinsUsed = 0, cashPaid = 0 } = req.body;
+    const { noteId, price, deliveryCost = 0, shippingAddress, coinsUsed = 0, cashPaid = 0 } = req.body;
     const buyerId = req.user.id;
 
     // Find note
@@ -58,6 +67,7 @@ exports.createOrder = async (req, res) => {
       buyer: buyerId,
       note: noteId,
       price: price,
+      deliveryCost: deliveryCost,
       coinsUsed: coinsUsed,
       cashPaid: cashPaid,
       status: isPhysical ? 'Pending' : 'Completed',
@@ -206,6 +216,149 @@ exports.setPickupDate = async (req, res) => {
     }
 
     res.status(200).json({ success: true, data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Create a Razorpay Order
+exports.createRazorpayOrder = async (req, res) => {
+  try {
+    const { noteId, price, deliveryCost = 0, shippingAddress, coinsUsed = 0, cashPaid = 0 } = req.body;
+    const buyerId = req.user.id;
+
+    if (!razorpayInstance) {
+      return res.status(500).json({ success: false, message: 'Razorpay is not configured on the server.' });
+    }
+
+    const note = await Note.findById(noteId).populate('seller', 'name email');
+    if (!note) return res.status(404).json({ success: false, message: 'Item not found' });
+    if (note.isSold) return res.status(400).json({ success: false, message: 'Item is already sold' });
+
+    const buyer = await User.findById(buyerId);
+    if (!buyer) return res.status(404).json({ success: false, message: 'Buyer not found' });
+
+    if (coinsUsed > 0 && buyer.coins < coinsUsed) {
+      return res.status(400).json({ success: false, message: 'Insufficient coins balance' });
+    }
+
+    // Determine actual cash to be paid
+    const actualCashPaid = (price + deliveryCost) - coinsUsed;
+    if (actualCashPaid <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid payment amount for gateway' });
+    }
+
+    const options = {
+      amount: Math.round(actualCashPaid * 100), // amount in the smallest currency unit (paise)
+      currency: "INR",
+      receipt: "rcptid_" + Date.now()
+    };
+
+    const rpayOrder = await razorpayInstance.orders.create(options);
+
+    const isPhysical = note.itemType === 'Physical';
+    const order = await Order.create({
+      buyer: buyerId,
+      note: noteId,
+      price: price,
+      deliveryCost: deliveryCost,
+      coinsUsed: coinsUsed,
+      cashPaid: actualCashPaid,
+      status: 'Pending Payment',
+      shippingAddress: isPhysical ? shippingAddress : undefined,
+      razorpayOrderId: rpayOrder.id,
+      invoiceNumber: 'INV-' + Date.now() + '-' + Math.floor(Math.random() * 1000)
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      orderId: rpayOrder.id, 
+      amount: options.amount, 
+      dbOrder: order,
+      keyId: process.env.RAZORPAY_KEY_ID 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Verify Razorpay Payment
+exports.verifyRazorpayPayment = async (req, res) => {
+  try {
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, orderId } = req.body;
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto.createHmac('sha256', secret).update(body.toString()).digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+    }
+
+    // Payment is valid, process the order
+    const order = await Order.findById(orderId).populate('note');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    order.razorpayPaymentId = razorpay_payment_id;
+    const isPhysical = order.note.itemType === 'Physical';
+    order.status = isPhysical ? 'Pending' : 'Completed'; // Pending shipment if physical
+    await order.save();
+
+    // Deduct coins from buyer
+    if (order.coinsUsed > 0) {
+      const buyer = await User.findById(order.buyer);
+      if (buyer) {
+        buyer.coins -= order.coinsUsed;
+        await buyer.save();
+      }
+    }
+
+    // Credit seller
+    if (order.price > 0) {
+      const PlatformConfig = require('../models/PlatformConfig');
+      let config = await PlatformConfig.findOne();
+      const commRate = config?.platformCommissionRate ?? 10;
+      const commissionAmount = order.price * (commRate / 100);
+      const creditedAmount = Math.max(0, order.price - commissionAmount);
+      
+      const sellerId = order.note.seller._id || order.note.seller;
+      const seller = await User.findById(sellerId);
+      if (seller) {
+        seller.coins = (seller.coins || 0) + creditedAmount;
+        await seller.save();
+      }
+    }
+
+    // Mark item as sold
+    if (isPhysical) {
+      order.note.isSold = true;
+      await order.note.save();
+    }
+
+    // Send notifications
+    try {
+      const buyer = await User.findById(order.buyer);
+      const sellerId = order.note.seller._id || order.note.seller;
+      const buyerName = buyer?.name || 'A student';
+
+      await Notification.create({
+        user: sellerId,
+        title: isPhysical ? '🎉 Your Item Was Sold!' : '📄 Your Notes Were Purchased!',
+        message: `${buyerName} purchased "${order.note.title}" for ₹${order.price}.`,
+        type: 'Order',
+      });
+
+      await Notification.create({
+        user: order.buyer,
+        title: '🛍️ Purchase Successful!',
+        message: `You have successfully purchased "${order.note.title}" for ₹${order.price}.`,
+        type: 'Order',
+      });
+    } catch (notifErr) {
+      console.error('Notification creation failed:', notifErr.message);
+    }
+
+    res.status(200).json({ success: true, message: 'Payment verified successfully', data: order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

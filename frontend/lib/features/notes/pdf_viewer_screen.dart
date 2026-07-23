@@ -42,7 +42,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   /// a "Buy Now" locked overlay for the remaining pages.
   String _buildPdfJsHtml() {
     final max = widget.maxPages ?? 0; // 0 = unlimited
-    final escapedUrl = widget.pdfUrl.replaceAll("'", "\\'");
+    final escapedUrl = widget.pdfUrl.replaceAll("'", "\'");
 
     return '''
 <!DOCTYPE html>

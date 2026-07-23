@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/constants/colors.dart';
+import '../core/api_service.dart';
 
 // ─── Breakpoint ────────────────────────────────────────────────────────────
 const double kSidebarBreakpoint = 700;
@@ -12,13 +13,17 @@ class AdminShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < kSidebarBreakpoint;
-        return isMobile
-            ? _MobileShell(child: child)
-            : _DesktopShell(child: child);
-      },
+    return PopScope(
+      // Prevent the hardware back button from popping/closing the shell
+      canPop: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < kSidebarBreakpoint;
+          return isMobile
+              ? _MobileShell(child: child)
+              : _DesktopShell(child: child);
+        },
+      ),
     );
   }
 }
@@ -60,17 +65,83 @@ class _MobileShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).matchedLocation;
+    
+    // Bottom nav items
+    final items = [
+      {'icon': Icons.dashboard_rounded, 'label': 'Overview', 'path': '/'},
+      {'icon': Icons.fact_check_rounded, 'label': 'Audit', 'path': '/notes'},
+      {'icon': Icons.local_shipping_rounded, 'label': 'Orders', 'path': '/orders'},
+      {'icon': Icons.view_carousel_rounded, 'label': 'Banners', 'path': '/banners'},
+    ];
+
     return Scaffold(
       backgroundColor: kBg,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: _TopBar(showMenuIcon: true),
-      ),
       drawer: Drawer(
         backgroundColor: kSurface,
         child: SafeArea(child: _SidebarContent()),
       ),
-      body: child,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _TopBar(showMenuIcon: true),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: kSurface,
+          border: Border(top: BorderSide(color: kBorder)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            )
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: items.map((item) {
+                final path = item['path'] as String;
+                final isActive = location == path || (path != '/' && location.startsWith(path));
+                final color = isActive ? kPrimary : kTextMuted;
+                return GestureDetector(
+                  onTap: () => context.go(path),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? kPrimary.withValues(alpha: 0.1) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(item['icon'] as IconData, color: color, size: 24),
+                        const SizedBox(height: 4),
+                        Text(
+                          item['label'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -86,6 +157,7 @@ class _SidebarContent extends StatelessWidget {
     _NavItem('User Directory', Icons.people_rounded,         '/users'),
     _NavItem('Disputes',       Icons.report_problem_rounded, '/disputes'),
     _NavItem('Banners Manager', Icons.view_carousel_rounded, '/banners'),
+    _NavItem('Reports',        Icons.gavel_rounded,          '/reports'),
     _NavItem('Settings',       Icons.settings_rounded,       '/settings'),
   ];
 
@@ -254,9 +326,54 @@ class _NavItem {
 // ─────────────────────────────────────────────────────────
 // TOP BAR
 // ─────────────────────────────────────────────────────────
-class _TopBar extends StatelessWidget {
+class _TopBar extends StatefulWidget {
   final bool showMenuIcon;
   const _TopBar({required this.showMenuIcon});
+
+  @override
+  State<_TopBar> createState() => _TopBarState();
+}
+
+class _TopBarState extends State<_TopBar> {
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUnreadCount();
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final res = await AdminApiService.request('GET', '/api/notifications');
+      if (res != null && res.statusCode == 200 && res.data['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _unreadCount = res.data['unreadCount'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+    }
+  }
+
+  void _showNotificationsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return _NotificationsSheet(
+          onRead: () {
+            _fetchUnreadCount();
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -266,72 +383,170 @@ class _TopBar extends StatelessWidget {
       '/notes': 'Notes Audit',
       '/users': 'User Directory',
       '/disputes': 'Disputes',
+      '/reports': 'Reports',
       '/settings': 'Settings',
     };
     final title = titles[location] ?? 'Admin Console';
 
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: kSurface,
-        border: Border(bottom: BorderSide(color: kBorder)),
-      ),
-      child: Row(
-        children: [
-          if (showMenuIcon)
-            Builder(
-              builder: (ctx) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: kTextMuted),
-                onPressed: () => Scaffold.of(ctx).openDrawer(),
-              ),
-            ),
-          if (showMenuIcon) const SizedBox(width: 4),
-          Text(title,
-              style: GoogleFonts.inter(
-                  color: kTextPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-          const Spacer(),
-          // Live status pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: kSuccess.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                        shape: BoxShape.circle, color: kSuccess)),
-                const SizedBox(width: 6),
-                Text('Live',
-                    style: GoogleFonts.inter(
-                        color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: kTextMuted),
-                onPressed: () {},
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  width: 7, height: 7,
-                  decoration:
-                      const BoxDecoration(shape: BoxShape.circle, color: kError),
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: const BoxDecoration(
+          color: kSurface,
+          border: Border(bottom: BorderSide(color: kBorder)),
+        ),
+        child: Row(
+          children: [
+            if (widget.showMenuIcon)
+              Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu_rounded, color: kTextMuted),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
                 ),
               ),
+            if (widget.showMenuIcon) const SizedBox(width: 4),
+            Text(title,
+                style: GoogleFonts.inter(
+                    color: kTextPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+            const Spacer(),
+            // Live status pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: kSuccess.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                          shape: BoxShape.circle, color: kSuccess)),
+                  const SizedBox(width: 6),
+                  Text('Live',
+                      style: GoogleFonts.inter(
+                          color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: kTextMuted),
+                  onPressed: () => _showNotificationsModal(context),
+                ),
+                if (_unreadCount > 0)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 8, height: 8,
+                      decoration:
+                          const BoxDecoration(shape: BoxShape.circle, color: kError),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationsSheet extends StatefulWidget {
+  final VoidCallback onRead;
+  const _NotificationsSheet({required this.onRead});
+
+  @override
+  State<_NotificationsSheet> createState() => _NotificationsSheetState();
+}
+
+class _NotificationsSheetState extends State<_NotificationsSheet> {
+  List<dynamic> _notifications = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final res = await AdminApiService.request('GET', '/api/notifications');
+      if (res != null && res.data['success'] == true) {
+        setState(() {
+          _notifications = res.data['data'] ?? [];
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _markAsRead(String id) async {
+    try {
+      await AdminApiService.request('PUT', '/api/notifications/$id/read');
+      widget.onRead();
+      _fetch();
+    } catch (e) {
+      debugPrint('Error marking read: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(height: 300, child: Center(child: CircularProgressIndicator(color: kPrimary)));
+    }
+    if (_notifications.isEmpty) {
+      return SizedBox(
+        height: 250,
+        child: Center(child: Text('No notifications right now.', style: GoogleFonts.inter(color: kTextMuted))),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Notifications', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: kTextPrimary)),
+              IconButton(icon: const Icon(Icons.close, color: kTextMuted), onPressed: () => Navigator.of(context).pop()),
             ],
           ),
-        ],
-      ),
+        ),
+        const Divider(height: 1, color: kBorder),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _notifications.length,
+            itemBuilder: (context, index) {
+              final notif = _notifications[index];
+              final isRead = notif['isRead'] ?? false;
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: kPrimary.withValues(alpha: 0.1),
+                  child: Icon(Icons.notifications_active_rounded, color: isRead ? kTextMuted : kPrimary, size: 18),
+                ),
+                title: Text(notif['title'] ?? 'Notification', style: GoogleFonts.inter(color: kTextPrimary, fontWeight: isRead ? FontWeight.normal : FontWeight.bold, fontSize: 14)),
+                subtitle: Text(notif['message'] ?? '', style: GoogleFonts.inter(color: kTextMuted, fontSize: 12)),
+                trailing: isRead ? null : IconButton(
+                  icon: const Icon(Icons.check_circle_outline, color: kSuccess, size: 20),
+                  onPressed: () => _markAsRead(notif['_id']),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+.DS_Store
+build/
+coverage/
+dist/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+*.log

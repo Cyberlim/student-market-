@@ -18,9 +18,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _referrerRewardCtrl = TextEditingController();
   final _approvalRewardCtrl = TextEditingController();
   final _commissionRateCtrl = TextEditingController();
+  final _deliveryCostCtrl = TextEditingController();
+  final _freeDeliveryMinPriceCtrl = TextEditingController();
   final _appNameCtrl = TextEditingController();
   final _appLogoUrlCtrl = TextEditingController();
 
+  String _freeDeliveryRule = 'None';
   bool _loading = true;
   bool _saving = false;
   bool _uploadingLogo = false;
@@ -38,6 +41,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _referrerRewardCtrl.dispose();
     _approvalRewardCtrl.dispose();
     _commissionRateCtrl.dispose();
+    _deliveryCostCtrl.dispose();
+    _freeDeliveryMinPriceCtrl.dispose();
     _appNameCtrl.dispose();
     _appLogoUrlCtrl.dispose();
     super.dispose();
@@ -55,6 +60,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _referrerRewardCtrl.text = (config['referralReferrerReward'] ?? 50).toString();
           _approvalRewardCtrl.text = (config['noteApprovalReward'] ?? 50).toString();
           _commissionRateCtrl.text = (config['platformCommissionRate'] ?? 10).toString();
+          _deliveryCostCtrl.text = (config['deliveryCost'] ?? 50).toString();
+          _freeDeliveryMinPriceCtrl.text = (config['freeDeliveryMinPrice'] ?? 500).toString();
+          _freeDeliveryRule = config['freeDeliveryRule'] ?? 'None';
           _appNameCtrl.text = (config['appName'] ?? 'EduMarket').toString();
           _appLogoUrlCtrl.text = (config['appLogoUrl'] ?? '').toString();
         });
@@ -81,6 +89,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'referralReferrerReward': int.tryParse(_referrerRewardCtrl.text.trim()) ?? 50,
           'noteApprovalReward': int.tryParse(_approvalRewardCtrl.text.trim()) ?? 50,
           'platformCommissionRate': int.tryParse(_commissionRateCtrl.text.trim()) ?? 10,
+          'deliveryCost': int.tryParse(_deliveryCostCtrl.text.trim()) ?? 50,
+          'freeDeliveryMinPrice': int.tryParse(_freeDeliveryMinPriceCtrl.text.trim()) ?? 500,
+          'freeDeliveryRule': _freeDeliveryRule,
           'appName': _appNameCtrl.text.trim(),
           'appLogoUrl': _appLogoUrlCtrl.text.trim(),
         },
@@ -207,6 +218,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 controller: _commissionRateCtrl,
                                 icon: Icons.percent_rounded,
                                 isPercentage: true,
+                              ),
+                              const SizedBox(height: 20),
+
+                              _buildConfigField(
+                                label: 'Default Delivery Cost (₹)',
+                                hint: 'Flat delivery fee added to physical items',
+                                controller: _deliveryCostCtrl,
+                                icon: Icons.local_shipping_rounded,
+                              ),
+                              const SizedBox(height: 20),
+
+                              _buildConfigField(
+                                label: 'Free Delivery Min Price (₹)',
+                                hint: 'Order price required to trigger free delivery condition',
+                                controller: _freeDeliveryMinPriceCtrl,
+                                icon: Icons.money_off_csred_rounded,
+                              ),
+                              const SizedBox(height: 20),
+
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Free Delivery Condition', style: GoogleFonts.inter(color: kTextPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text('When does the free delivery rule apply?', style: GoogleFonts.inter(color: kTextMuted, fontSize: 11)),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<String>(
+                                    value: _freeDeliveryRule,
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(Icons.rule_rounded, color: kTextMuted, size: 20),
+                                      filled: true,
+                                      fillColor: kSurfaceHigh,
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kPrimary, width: 2)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(value: 'None', child: Text('None (Never free)')),
+                                      DropdownMenuItem(value: 'Price Only', child: Text('Price Only (Any distance)')),
+                                      DropdownMenuItem(value: 'Same City', child: Text('Same City')),
+                                      DropdownMenuItem(value: 'Same Pincode', child: Text('Same Pincode (Local)')),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() => _freeDeliveryRule = val);
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 20),
 

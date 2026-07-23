@@ -23,6 +23,10 @@ const OrderSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  deliveryCost: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: String,
     enum: ['Pending', 'Completed', 'Failed', 'Dispatched', 'Out for Delivery', 'Delivered', 'Cancelled'],

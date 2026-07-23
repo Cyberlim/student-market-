@@ -11,6 +11,9 @@ router.post('/otp/verify', verifyOtp);
 router.post('/forgot-password', forgotPassword);
 router.put('/profile', protect, updateProfile);
 router.put('/fcm-token', protect, updateFcmToken);
+const { followUser, unfollowUser } = require('../controllers/authController');
+router.post('/follow/:id', protect, followUser);
+router.post('/unfollow/:id', protect, unfollowUser);
 
 // User Addresses
 router.route('/addresses')

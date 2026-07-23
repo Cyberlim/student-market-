@@ -8,11 +8,12 @@ class AdminApiService {
   static final Dio _dio = Dio();
   
   static const List<String> _hosts = [
-    'https://student-market-1-kx64.onrender.com',
+    'http://192.168.1.40:5001',
     'http://localhost:5001',
     'http://10.0.2.2:5001',
     'http://10.66.158.220:5001',
     'http://10.138.27.220:5001',
+    'https://student-market-1-kx64.onrender.com',
   ];
 
   static Future<Map<String, String>> _getHeaders() async {
