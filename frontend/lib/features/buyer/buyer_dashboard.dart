@@ -8,6 +8,7 @@ import '../../core/utils/file_download_helper.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 import '../../widgets/glass_card.dart';
+import 'student_learning_panel.dart';
 
 class BuyerDashboard extends StatefulWidget {
   const BuyerDashboard({Key? key}) : super(key: key);
@@ -289,28 +290,49 @@ class _BuyerDashboardState extends State<BuyerDashboard> with SingleTickerProvid
                     final subject = note['subject'] ?? 'General';
                     final fileUrl = note['fileUrl'] ?? '';
                     final noteId = note['_id'] ?? '';
-                    return GlassCard(
-                      borderRadius: 14,
-                      opacity: 0.04,
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text('$subject • Download active', style: const TextStyle(color: Colors.grey, fontSize: 10)),
-                              ],
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => StudentLearningPanel(note: note),
+                          ),
+                        );
+                      },
+                      child: GlassCard(
+                        borderRadius: 14,
+                        opacity: 0.04,
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text('$subject • Tap to study', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                                ],
+                              ),
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.download_for_offline_rounded, color: AppColors.primary),
-                            onPressed: () => _downloadFile(fileUrl, title, noteId),
-                          ),
-                        ],
+                            IconButton(
+                              icon: const Icon(Icons.menu_book_rounded, color: AppColors.primary),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => StudentLearningPanel(note: note),
+                                  ),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.download_for_offline_rounded, color: Colors.grey),
+                              onPressed: () => _downloadFile(fileUrl, title, noteId),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

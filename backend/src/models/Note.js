@@ -34,6 +34,12 @@ const NoteSchema = new mongoose.Schema({
     type: Number,
     default: 0, // 0 means Free / Give away
   },
+  category: {
+    type: String,
+    enum: ['Notes', 'Previous Year Paper', 'Assignment', 'Study Material', 'Other'],
+    default: 'Notes',
+    required: function() { return this.itemType === 'Digital'; },
+  },
   tags: [{
     type: String,
   }],

@@ -309,14 +309,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _digitalCategories = [
     'All',
     'Notes',
-    'Previous Year Papers',
-    'Assignments',
-    'Lab Manuals',
-    'Practical Files',
-    'PPTs',
-    'Project Reports',
-    'Cheat Sheets',
-    'Research Papers'
+    'Previous Year Paper',
+    'Assignment',
+    'Study Material',
+    'Other'
   ];
 
   final List<String> _physicalCategories = [

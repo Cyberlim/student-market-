@@ -40,6 +40,15 @@ class _NoteUploadScreenState extends State<NoteUploadScreen> {
     'Electronics'
   ];
 
+  String _noteCategory = 'Notes';
+  final List<String> _noteCategories = [
+    'Notes',
+    'Previous Year Paper',
+    'Assignment',
+    'Study Material',
+    'Other'
+  ];
+
   final List<String> _conditions = ['New', 'Like New', 'Good', 'Fair'];
 
   bool _isFree = false;
@@ -204,6 +213,7 @@ class _NoteUploadScreenState extends State<NoteUploadScreen> {
         formDataMap['subject'] = _subjectController.text;
         formDataMap['department'] = 'General';
         formDataMap['semester'] = '1';
+        formDataMap['category'] = _noteCategory;
         formDataMap['file'] = filePayload;
       } else {
         // Handle physical store images
@@ -493,6 +503,21 @@ class _NoteUploadScreenState extends State<NoteUploadScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Please enter subject';
                       return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Note Category Selection
+                  DropdownButtonFormField<String>(
+                    value: _noteCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Material Type',
+                      prefixIcon: Icon(Icons.category_rounded),
+                    ),
+                    items: _noteCategories.map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _noteCategory = val);
                     },
                   ),
                   const SizedBox(height: 24),

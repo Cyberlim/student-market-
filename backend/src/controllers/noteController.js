@@ -9,7 +9,7 @@ const { uploadToCloudinary } = require('../config/cloudinary');
 exports.uploadNote = async (req, res) => {
   console.log('Received Note Upload request. body:', req.body, 'files:', req.files);
   try {
-    const { title, description, college, department, semester, subject, price, tags, itemType, physicalCategory, itemCondition } = req.body;
+    const { title, description, college, department, semester, subject, price, tags, itemType, physicalCategory, itemCondition, category } = req.body;
 
     const type = itemType || 'Digital';
     const isPhysical = type === 'Physical';
@@ -109,6 +109,7 @@ exports.uploadNote = async (req, res) => {
       itemType: type,
       physicalCategory: isPhysical ? (physicalCategory || 'Electronics') : 'None',
       itemCondition: isPhysical ? (itemCondition || 'Good') : 'None',
+      category: isPhysical ? 'Notes' : (category || 'Notes'),
     });
 
     console.log('Note saved successfully to MongoDB with id:', note._id);
